@@ -1,0 +1,492 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag, core lock, and adapter snapshots
+        run: |
+          scripts/check-release.sh "$GITHUB_REF_NAME"
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+
+  apple-source:
+    needs: metadata
+    runs-on: macos-15
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install locked Rust toolchain
+        run: |
+          source release/toolchains.env
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUST_TOOLCHAIN" \
+            aarch64-apple-darwin \
+            x86_64-apple-darwin \
+            aarch64-apple-ios \
+            aarch64-apple-ios-sim \
+            x86_64-apple-ios
+
+      - name: Rebuild and test Swift sources
+        run: |
+          APPLE_INCLUDE_MACOS=1 scripts/build-apple.sh
+          scripts/check-apple-link.sh
+
+  apple-asset:
+    needs: metadata
+    runs-on: macos-15
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install locked Rust toolchain
+        run: |
+          source release/toolchains.env
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUST_TOOLCHAIN" \
+            aarch64-apple-ios \
+            aarch64-apple-ios-sim \
+            x86_64-apple-ios
+
+      - name: Rebuild exact SwiftPM archive from the tag
+        run: |
+          APPLE_INCLUDE_MACOS=0 scripts/build-apple.sh
+          scripts/package-apple.sh
+          source release/version.env
+          scripts/verify-apple-archive.sh \
+            "dist/v$XRAY_MOBILE_VERSION/XrayRust.xcframework.zip"
+
+      - name: Preserve rebuilt Apple release asset
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-apple
+          path: dist/v*/XrayRust.xcframework.zip
+          if-no-files-found: error
+          overwrite: true
+
+  android-build:
+    needs: metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Select JDK 17
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+
+      - name: Install locked Android SDK components
+        run: |
+          source release/toolchains.env
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platforms;android-$ANDROID_COMPILE_SDK" \
+            "ndk;$ANDROID_NDK_VERSION" \
+            "cmake;$ANDROID_CMAKE_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" \
+            >> "$GITHUB_ENV"
+
+      - name: Install locked Rust toolchain
+        run: |
+          source release/toolchains.env
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUST_TOOLCHAIN" \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            i686-linux-android \
+            x86_64-linux-android
+
+      - name: Build, test, and stage Maven module
+        run: scripts/build-android.sh
+
+      - name: Resolve SDK from the staged Maven repository
+        run: scripts/check-android-consumer.sh
+
+      - name: Package Android release files
+        run: scripts/package-android.sh
+
+      - name: Archive exact native inputs for publication retry
+        run: |
+          tar -czf .build/android-native.tar.gz \
+            -C .build/android/native .
+
+      - name: Preserve Android release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-android
+          path: |
+            dist/v*/xray-rust-mobile-*.aar
+            dist/v*/xray-rust-mobile-*-maven.zip
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Preserve exact Android native inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-android-native
+          path: .build/android-native.tar.gz
+          if-no-files-found: error
+          overwrite: true
+
+  draft-release:
+    needs: [apple-source, apple-asset, android-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Download verified Apple asset
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-apple
+          path: incoming/apple
+
+      - name: Download verified Android assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-android
+          path: incoming/android
+
+      - name: Assemble release metadata
+        run: |
+          source release/version.env
+          dist="dist/v$XRAY_MOBILE_VERSION"
+          mkdir -p "$dist"
+          apple="$(find incoming/apple -name XrayRust.xcframework.zip -type f -print -quit)"
+          android="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar" -type f -print -quit)"
+          maven="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" -type f -print -quit)"
+          test -n "$apple"
+          test -n "$android"
+          test -n "$maven"
+          cp "$apple" "$dist/"
+          cp "$android" "$dist/"
+          cp "$maven" "$dist/"
+          scripts/write-release-manifest.sh "$dist"
+
+      - name: Create or resume draft and verify uploaded assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source release/version.env
+          dist="dist/v$XRAY_MOBILE_VERSION"
+          assets=(
+            "$dist/XrayRust.xcframework.zip"
+            "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
+            "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+            "$dist/release-manifest.json"
+            "$dist/SHA256SUMS"
+          )
+
+          state="$(
+            gh release view "$GITHUB_REF_NAME" \
+              --json isDraft,isPrerelease \
+              --jq '[.isDraft, .isPrerelease] | @tsv' \
+              2>/dev/null || true
+          )"
+          case "$state" in
+            "")
+              gh release create "$GITHUB_REF_NAME" \
+                --verify-tag \
+                --draft \
+                --prerelease \
+                --generate-notes \
+                --title "xray-rust-mobile $XRAY_MOBILE_VERSION"
+              gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+              ;;
+            $'true\ttrue')
+              gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+              ;;
+            $'false\ttrue')
+              echo "prerelease is already published; verifying immutable assets"
+              ;;
+            *)
+              echo "unexpected GitHub release state: $state" >&2
+              exit 1
+              ;;
+          esac
+
+          remote=".build/remote-release-assets"
+          mkdir -p "$remote"
+          expected_names="$(
+            for asset in "${assets[@]}"; do
+              basename "$asset"
+            done | sort
+          )"
+          actual_names="$(
+            gh release view "$GITHUB_REF_NAME" \
+              --json assets \
+              --jq '.assets[].name' |
+              sort
+          )"
+          [[ "$actual_names" == "$expected_names" ]] || {
+            echo "GitHub release has an unexpected asset set" >&2
+            diff \
+              <(printf '%s\n' "$expected_names") \
+              <(printf '%s\n' "$actual_names") >&2 || true
+            exit 1
+          }
+          for asset in "${assets[@]}"; do
+            name="$(basename "$asset")"
+            gh release download "$GITHUB_REF_NAME" \
+              --pattern "$name" \
+              --dir "$remote"
+            cmp "$asset" "$remote/$name"
+          done
+
+  maven-publish:
+    needs: draft-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Download exact Android distribution
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-android
+          path: incoming/android
+
+      - name: Expand expected Maven publication
+        run: |
+          source release/version.env
+          archive="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" -type f -print -quit)"
+          test -n "$archive"
+          mkdir -p .build/expected-maven
+          unzip -q "$archive" -d .build/expected-maven
+
+      - name: Check whether the Maven coordinate already exists
+        id: remote
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          source release/version.env
+          group="$(awk -F= '$1 == "GROUP" {print $2}' android/gradle.properties)"
+          artifact="$(awk -F= '$1 == "POM_ARTIFACT_ID" {print $2}' android/gradle.properties)"
+          group_path="${group//.//}"
+          base="https://maven.pkg.github.com/$GITHUB_REPOSITORY/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          expected=".build/expected-maven/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          remote=".build/remote-maven"
+          mkdir -p "$remote"
+          names=(
+            "$artifact-$XRAY_MOBILE_VERSION.aar"
+            "$artifact-$XRAY_MOBILE_VERSION.pom"
+            "$artifact-$XRAY_MOBILE_VERSION.module"
+            "$artifact-$XRAY_MOBILE_VERSION-sources.jar"
+          )
+          found=0
+          missing=0
+          for name in "${names[@]}"; do
+            status="$(
+              curl -sS \
+                -u "$GITHUB_ACTOR:$GITHUB_TOKEN" \
+                -o "$remote/$name" \
+                -w '%{http_code}' \
+                "$base/$name"
+            )"
+            case "$status" in
+              200) found=$((found + 1)) ;;
+              404)
+                missing=$((missing + 1))
+                rm -f "$remote/$name"
+                ;;
+              *)
+                echo "unexpected Maven registry response $status for $name" >&2
+                exit 1
+                ;;
+            esac
+          done
+          if [[ "$found" -eq "${#names[@]}" ]]; then
+            for name in "${names[@]}"; do
+              cmp "$expected/$name" "$remote/$name"
+            done
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$missing" -eq "${#names[@]}" ]]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Maven coordinate is only partially published" >&2
+            exit 1
+          fi
+
+      - name: Select JDK 17
+        if: steps.remote.outputs.exists == 'false'
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+
+      - name: Install locked Android SDK components
+        if: steps.remote.outputs.exists == 'false'
+        run: |
+          source release/toolchains.env
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platforms;android-$ANDROID_COMPILE_SDK" \
+            "ndk;$ANDROID_NDK_VERSION" \
+            "cmake;$ANDROID_CMAKE_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" \
+            >> "$GITHUB_ENV"
+
+      - name: Download exact Android native inputs
+        if: steps.remote.outputs.exists == 'false'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-android-native
+          path: incoming/native
+
+      - name: Rebuild and compare staged publication
+        if: steps.remote.outputs.exists == 'false'
+        run: |
+          mkdir -p .build/android/native
+          tar -xzf incoming/native/android-native.tar.gz \
+            -C .build/android/native
+          XRAY_USE_PREBUILT_ARTIFACTS=1 scripts/build-android.sh
+          source release/version.env
+          group="$(awk -F= '$1 == "GROUP" {print $2}' android/gradle.properties)"
+          artifact="$(awk -F= '$1 == "POM_ARTIFACT_ID" {print $2}' android/gradle.properties)"
+          group_path="${group//.//}"
+          expected=".build/expected-maven/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          rebuilt="android/build/maven-repository/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          for name in \
+            "$artifact-$XRAY_MOBILE_VERSION.aar" \
+            "$artifact-$XRAY_MOBILE_VERSION.pom" \
+            "$artifact-$XRAY_MOBILE_VERSION.module" \
+            "$artifact-$XRAY_MOBILE_VERSION-sources.jar"; do
+            cmp "$expected/$name" "$rebuilt/$name"
+          done
+
+      - name: Publish Maven module
+        if: steps.remote.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          XRAY_USE_PREBUILT_ARTIFACTS=1 scripts/build-android.sh \
+            :xraymobile:publishReleasePublicationToGitHubPackagesRepository
+
+      - name: Verify exact Maven registry artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          source release/version.env
+          group="$(awk -F= '$1 == "GROUP" {print $2}' android/gradle.properties)"
+          artifact="$(awk -F= '$1 == "POM_ARTIFACT_ID" {print $2}' android/gradle.properties)"
+          group_path="${group//.//}"
+          base="https://maven.pkg.github.com/$GITHUB_REPOSITORY/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          expected=".build/expected-maven/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          remote=".build/verified-remote-maven"
+          mkdir -p "$remote"
+          names=(
+            "$artifact-$XRAY_MOBILE_VERSION.aar"
+            "$artifact-$XRAY_MOBILE_VERSION.pom"
+            "$artifact-$XRAY_MOBILE_VERSION.module"
+            "$artifact-$XRAY_MOBILE_VERSION-sources.jar"
+          )
+          for attempt in {1..12}; do
+            ready=1
+            for name in "${names[@]}"; do
+              status="$(
+                curl -sS \
+                  -u "$GITHUB_ACTOR:$GITHUB_TOKEN" \
+                  -o "$remote/$name" \
+                  -w '%{http_code}' \
+                  "$base/$name"
+              )"
+              if [[ "$status" == "404" ]]; then
+                ready=0
+              elif [[ "$status" != "200" ]]; then
+                echo "unexpected Maven registry response $status for $name" >&2
+                exit 1
+              fi
+            done
+            [[ "$ready" -eq 1 ]] && break
+            [[ "$attempt" -lt 12 ]] || {
+              echo "Maven publication did not become visible" >&2
+              exit 1
+            }
+            sleep 5
+          done
+          for name in "${names[@]}"; do
+            cmp "$expected/$name" "$remote/$name"
+          done
+
+  finalize-prerelease:
+    needs: maven-publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Publish or verify the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          state="$(
+            gh release view "$GITHUB_REF_NAME" \
+              --json isDraft,isPrerelease \
+              --jq '[.isDraft, .isPrerelease] | @tsv'
+          )"
+          case "$state" in
+            $'true\ttrue')
+              gh release edit "$GITHUB_REF_NAME" \
+                --draft=false \
+                --prerelease \
+                --latest=false
+              ;;
+            $'false\ttrue')
+              echo "prerelease is already finalized"
+              ;;
+            *)
+              echo "unexpected GitHub release state: $state" >&2
+              exit 1
+              ;;
+          esac

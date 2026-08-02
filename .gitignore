@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+Artifacts/
+dist/
+android/.gradle/
+android/local.properties
+android/**/.cxx/
+android/**/build/
+smoke/android/.gradle/
+smoke/android/**/build/
