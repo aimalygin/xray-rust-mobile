@@ -354,7 +354,7 @@ jobs:
           missing=0
           for name in "${names[@]}"; do
             status="$(
-              curl -sS \
+              curl -L -sS \
                 -u "$GITHUB_ACTOR:$GITHUB_TOKEN" \
                 -o "$remote/$name" \
                 -w '%{http_code}' \
@@ -459,7 +459,7 @@ jobs:
             ready=1
             for name in "${names[@]}"; do
               status="$(
-                curl -sS \
+                curl -L -sS \
                   -u "$GITHUB_ACTOR:$GITHUB_TOKEN" \
                   -o "$remote/$name" \
                   -w '%{http_code}' \
