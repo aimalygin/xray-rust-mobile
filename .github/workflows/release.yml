@@ -4,12 +4,21 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish or retry
+        required: true
+        type: string
 
 permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
+
+env:
+  XRAY_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   metadata:
@@ -17,17 +26,25 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      apple_artifact_name: ${{ steps.release.outputs.apple_artifact_name }}
+      apple_artifact_run_id: ${{ steps.release.outputs.apple_artifact_run_id }}
     steps:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Verify tag, core lock, and adapter snapshots
+        id: release
         run: |
-          scripts/check-release.sh "$GITHUB_REF_NAME"
+          scripts/check-release.sh "$XRAY_RELEASE_TAG"
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
+          source release/artifacts.env
+          echo "apple_artifact_name=$APPLE_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+          echo "apple_artifact_run_id=$APPLE_ARTIFACT_RUN_ID" >> "$GITHUB_OUTPUT"
 
   apple-source:
     needs: metadata
@@ -41,6 +58,7 @@ jobs:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           persist-credentials: false
 
       - name: Install locked Rust toolchain
@@ -64,6 +82,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     permissions:
+      actions: read
       contents: read
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
@@ -71,26 +90,28 @@ jobs:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           persist-credentials: false
 
-      - name: Install locked Rust toolchain
-        run: |
-          source release/toolchains.env
-          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
-          rustup target add --toolchain "$RUST_TOOLCHAIN" \
-            aarch64-apple-ios \
-            aarch64-apple-ios-sim \
-            x86_64-apple-ios
+      - name: Download locked SwiftPM archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.metadata.outputs.apple_artifact_name }}
+          path: incoming/apple
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.metadata.outputs.apple_artifact_run_id }}
 
-      - name: Rebuild exact SwiftPM archive from the tag
+      - name: Verify locked SwiftPM archive
         run: |
-          APPLE_INCLUDE_MACOS=0 scripts/build-apple.sh
-          scripts/package-apple.sh
           source release/version.env
-          scripts/verify-apple-archive.sh \
-            "dist/v$XRAY_MOBILE_VERSION/XrayRust.xcframework.zip"
+          archive="$(find incoming/apple -name XrayRust.xcframework.zip -type f -print -quit)"
+          test -n "$archive"
+          scripts/verify-apple-archive.sh "$archive"
+          dist="dist/v$XRAY_MOBILE_VERSION"
+          mkdir -p "$dist"
+          cp "$archive" "$dist/"
 
-      - name: Preserve rebuilt Apple release asset
+      - name: Preserve locked Apple release asset
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-apple
@@ -108,6 +129,7 @@ jobs:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           persist-credentials: false
 
       - name: Select JDK 17
@@ -164,6 +186,7 @@ jobs:
         with:
           name: release-android-native
           path: .build/android-native.tar.gz
+          include-hidden-files: true
           if-no-files-found: error
           overwrite: true
 
@@ -178,6 +201,7 @@ jobs:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           persist-credentials: false
 
       - name: Download verified Apple asset
@@ -223,23 +247,23 @@ jobs:
           )
 
           state="$(
-            gh release view "$GITHUB_REF_NAME" \
+            gh release view "$XRAY_RELEASE_TAG" \
               --json isDraft,isPrerelease \
               --jq '[.isDraft, .isPrerelease] | @tsv' \
               2>/dev/null || true
           )"
           case "$state" in
             "")
-              gh release create "$GITHUB_REF_NAME" \
+              gh release create "$XRAY_RELEASE_TAG" \
                 --verify-tag \
                 --draft \
                 --prerelease \
                 --generate-notes \
                 --title "xray-rust-mobile $XRAY_MOBILE_VERSION"
-              gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+              gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
               ;;
             $'true\ttrue')
-              gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+              gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
               ;;
             $'false\ttrue')
               echo "prerelease is already published; verifying immutable assets"
@@ -258,7 +282,7 @@ jobs:
             done | sort
           )"
           actual_names="$(
-            gh release view "$GITHUB_REF_NAME" \
+            gh release view "$XRAY_RELEASE_TAG" \
               --json assets \
               --jq '.assets[].name' |
               sort
@@ -272,7 +296,7 @@ jobs:
           }
           for asset in "${assets[@]}"; do
             name="$(basename "$asset")"
-            gh release download "$GITHUB_REF_NAME" \
+            gh release download "$XRAY_RELEASE_TAG" \
               --pattern "$name" \
               --dir "$remote"
             cmp "$asset" "$remote/$name"
@@ -290,6 +314,7 @@ jobs:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ env.XRAY_RELEASE_TAG }}
           persist-credentials: false
 
       - name: Download exact Android distribution
@@ -471,13 +496,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           state="$(
-            gh release view "$GITHUB_REF_NAME" \
+            gh release view "$XRAY_RELEASE_TAG" \
               --json isDraft,isPrerelease \
               --jq '[.isDraft, .isPrerelease] | @tsv'
           )"
           case "$state" in
             $'true\ttrue')
-              gh release edit "$GITHUB_REF_NAME" \
+              gh release edit "$XRAY_RELEASE_TAG" \
                 --draft=false \
                 --prerelease \
                 --latest=false

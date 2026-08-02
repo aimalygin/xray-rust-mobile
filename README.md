@@ -115,6 +115,8 @@ start options.
 
 The default publication target is GitHub Packages:
 
+In `settings.gradle.kts`:
+
 ~~~kotlin
 dependencyResolutionManagement {
     repositories {
@@ -135,6 +137,8 @@ dependencyResolutionManagement {
 }
 ~~~
 
+In the app module's `build.gradle.kts`:
+
 ~~~kotlin
 dependencies {
     implementation("io.github.aimalygin:xray-rust-mobile:0.1.0")
@@ -142,9 +146,17 @@ dependencies {
 ~~~
 
 GitHub currently requires package credentials even for public Maven packages;
-use a token with `read:packages`. Every GitHub release also contains the
-standalone AAR. Maven Central publication can be added after the namespace and
-signing credentials are provisioned.
+use a personal access token (classic) with `read:packages`. Keep credentials
+outside the project, for example in `~/.gradle/gradle.properties`:
+
+~~~properties
+gpr.user=<your GitHub username>
+gpr.key=<PAT classic with read:packages>
+~~~
+
+Every GitHub release also contains the standalone AAR. Maven Central
+publication can be added after the namespace and signing credentials are
+provisioned.
 
 The AAR supports API 24+ and contains `arm64-v8a`, `armeabi-v7a`, `x86`, and
 `x86_64`, with 16 KiB page-aligned native libraries. It merges the
