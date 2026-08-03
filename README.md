@@ -10,22 +10,17 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 - `io.github.aimalygin:xray-rust-mobile` as an Android AAR/Maven module;
 - matching checksums and a release manifest.
 
-> [!WARNING]
-> This project is experimental, implements only the subset documented by
-> `xray-rust`, has not had an independent security audit, and is not a drop-in
-> replacement for Xray-core. Releases before 1.0 do not establish a stable
-> support series.
-
 ## Version mapping
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.1.1` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.0` | `v0.1.0` | `e4daf171c6c44730312d4e35294b25e60691291f` | `1` |
 
-The SDK version is intentionally independent from the core version. A Swift or
-Kotlin packaging fix can therefore be released without inventing a new Rust
-core version. The complete trust anchor is in
-[`release/core.env`](release/core.env).
+For releases that change the core or its adapters, the Mobile SDK version stays
+aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
+respin may advance independently without inventing a new Rust core version.
+The complete trust anchor is in [`release/core.env`](release/core.env).
 
 ## iOS with Swift Package Manager
 
@@ -35,7 +30,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.1.0"
+        exact: "0.1.1"
     ),
 ]
 ~~~
@@ -111,6 +106,57 @@ Network Extension entitlements, the provider bundle identifier, and VPN
 consent. Never place the raw configuration JSON in `providerConfiguration` or
 start options.
 
+### Shared App Group geodata
+
+Hosts that download or share `geosite.dat` and `geoip.dat` should give the
+containing app and Packet Tunnel extension the same App Group entitlement:
+
+~~~xml
+<key>com.apple.security.application-groups</key>
+<array>
+    <string>group.com.example.xray</string>
+</array>
+~~~
+
+Publish each checksum-verified generation into its own directory, for example:
+
+~~~text
+Library/Application Support/XrayGeodata/<version>-<sha256>/
+  geosite.dat
+  geoip.dat
+~~~
+
+Select that exact generation in the provider configuration:
+
+~~~swift
+providerConfiguration[
+    XrayTunnelProviderMessage.providerGeodataAppGroupIdentifierKey
+] = "group.com.example.xray"
+providerConfiguration[
+    XrayTunnelProviderMessage.providerGeodataRelativeDirectoryKey
+] = "Library/Application Support/XrayGeodata/<version>-<sha256>"
+~~~
+
+Both values are required together. The relative directory must already exist
+inside the App Group and every component must be a real directory rather than
+a symbolic link. Empty, `.` and `..` path components are rejected. With both
+keys absent, the Packet Tunnel keeps the existing `Bundle.main.resourceURL`
+fallback. With both keys present, the selected generation is exclusive: a
+referenced asset missing from it fails preflight instead of being loaded from
+the process-default search directories.
+
+Download into a sibling staging directory, verify checksums, then atomically
+rename the completed directory to its final generation name. Published
+generations are immutable: do not replace their files or use a mutable
+`current` symlink, and retain the selected generation until the tunnel has
+stopped and no saved provider configuration refers to it.
+
+The App Group is a trusted cooperation boundary. The adapter validates the
+selected path when the tunnel starts, but it does not hold directory file
+descriptors or defend against another App Group writer replacing a published
+generation concurrently. It does not download or verify geodata on the host's
+behalf.
+
 ## Android with Gradle
 
 The default publication target is GitHub Packages:
@@ -141,7 +187,7 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.1.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.1.1")
 }
 ~~~
 

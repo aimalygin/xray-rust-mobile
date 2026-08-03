@@ -45,8 +45,9 @@ or replace an asset under an existing release URL.
 Create and push an annotated tag only after the generated lock PR is merged:
 
 ~~~sh
-git tag -a v0.1.0 -m "xray-rust-mobile v0.1.0"
-git push origin v0.1.0
+version=0.1.1
+git tag -a "v${version}" -m "xray-rust-mobile v${version}"
+git push origin "v${version}"
 ~~~
 
 The tag workflow:
