@@ -3,8 +3,8 @@
 import Foundation
 import PackageDescription
 
-let releaseVersion = "0.1.1"
-let releaseChecksum = "0e8c5bb26b5d7b746044b4f4b3c440432c01056c271303b1be652cae10b531c6"
+let releaseVersion = "0.1.2"
+let releaseChecksum = "0000000000000000000000000000000000000000000000000000000000000000"
 let localXCFrameworkPath = "Artifacts/XrayRust.xcframework"
 let packageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localXCFrameworkURL = packageDirectory.appendingPathComponent(
@@ -13,24 +13,10 @@ let localXCFrameworkURL = packageDirectory.appendingPathComponent(
 let usesLocalXCFramework = FileManager.default.fileExists(
     atPath: localXCFrameworkURL.path
 )
-let localXCFrameworkHasMacOS = FileManager.default.fileExists(
-    atPath: localXCFrameworkURL
-        .appendingPathComponent("macos-arm64_x86_64")
-        .path
-)
-
-// Release assets are iOS-only. CI builds an additional local macOS slice so
-// the shared Swift sources and XCTest suites can run on the host.
-let supportedPlatforms: [SupportedPlatform] = if localXCFrameworkHasMacOS {
-    [
-        .iOS(.v15),
-        .macOS(.v11),
-    ]
-} else {
-    [
-        .iOS(.v15),
-    ]
-}
+let supportedPlatforms: [SupportedPlatform] = [
+    .iOS(.v15),
+    .macOS(.v11),
+]
 
 let xrayRustTarget: Target = if usesLocalXCFramework {
     .binaryTarget(

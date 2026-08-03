@@ -1,6 +1,6 @@
 # xray-rust-mobile
 
-Binary iOS and Android distribution for
+Binary iOS, macOS, and Android distribution for
 [`xray-rust`](https://github.com/aimalygin/xray-rust).
 
 The Rust implementation stays in the core repository. This repository pins one
@@ -14,6 +14,7 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.1.2` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.1` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.0` | `v0.1.0` | `e4daf171c6c44730312d4e35294b25e60691291f` | `1` |
 
@@ -22,7 +23,7 @@ aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
 respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
 
-## iOS with Swift Package Manager
+## Apple platforms with Swift Package Manager
 
 Add the package:
 
@@ -30,7 +31,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.1.1"
+        exact: "0.1.2"
     ),
 ]
 ~~~
@@ -52,8 +53,10 @@ Available products:
   import, logging, and DNS preflight;
 - `XrayAppleTunnel` — a ready-to-subclass `NEPacketTunnelProvider`.
 
-Minimum supported iOS version is 15. The binary contains `arm64` for devices
-and `arm64` plus `x86_64` for simulators.
+Minimum supported versions are iOS 15 and macOS 11. The binary contains `arm64`
+for iOS devices, `arm64` plus `x86_64` for iOS simulators, and a universal
+`arm64` plus `x86_64` macOS slice. `XrayAppleTunnel` APIs that depend on newer
+Network Extension functionality require macOS 13.
 
 Low-level lifecycle:
 
@@ -187,7 +190,7 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.1.1")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.1.2")
 }
 ~~~
 
@@ -270,6 +273,8 @@ Apple:
 source release/toolchains.env
 rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
 rustup target add --toolchain "$RUST_TOOLCHAIN" \
+  aarch64-apple-darwin \
+  x86_64-apple-darwin \
   aarch64-apple-ios \
   aarch64-apple-ios-sim \
   x86_64-apple-ios

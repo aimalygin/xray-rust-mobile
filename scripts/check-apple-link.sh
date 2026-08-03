@@ -40,6 +40,11 @@ check_target ios-simulator-x86_64 iphonesimulator \
   "x86_64-apple-ios$IOS_DEPLOYMENT_TARGET-simulator"
 
 if [[ -d "$xcframework/macos-arm64_x86_64" ]]; then
+  check_target macos-arm64 macosx \
+    "arm64-apple-macos$MACOS_DEPLOYMENT_TARGET"
+  check_target macos-x86_64 macosx \
+    "x86_64-apple-macos$MACOS_DEPLOYMENT_TARGET"
+
   CLANG_MODULE_CACHE_PATH="$MOBILE_ROOT/.build/clang-module-cache-tests" \
     swift test \
       --disable-sandbox \

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.2 - 2026-08-03
+
+- Added macOS 11+ support to the published Swift Package and its binary
+  XCFramework, including a universal `arm64` and `x86_64` static-library slice.
+
 ## 0.1.1 - 2026-08-03
 
 - Added Packet Tunnel support for loading host-managed geodata generations

@@ -43,13 +43,15 @@ jobs:
           source release/toolchains.env
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
           rustup target add --toolchain "$RUST_TOOLCHAIN" \
+            aarch64-apple-darwin \
+            x86_64-apple-darwin \
             aarch64-apple-ios \
             aarch64-apple-ios-sim \
             x86_64-apple-ios
 
       - name: Build and package the immutable SwiftPM artifact
         run: |
-          APPLE_INCLUDE_MACOS=0 scripts/build-apple.sh
+          APPLE_INCLUDE_MACOS=1 scripts/build-apple.sh
           scripts/package-apple.sh
           source release/version.env
           archive="dist/v$XRAY_MOBILE_VERSION/XrayRust.xcframework.zip"

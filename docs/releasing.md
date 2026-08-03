@@ -14,9 +14,9 @@ publishing a public version. Apple release artifacts must be built with the
 Xcode version locked in `release/toolchains.env`; using another selected Xcode
 is allowed only for local experiments and cannot produce the locked release.
 
-The prepare workflow artifact is retained for 30 days. The tag workflow does
-not trust or republish that cached file: it rebuilds the iOS-only archive from
-the tag and requires the same locked checksum.
+The prepare workflow artifact is retained for 30 days. The tag workflow only
+publishes the exact locked Apple archive after rechecking its checksum and
+structure; a separate job rebuilds the sources and tests the Apple products.
 
 ## Prepare
 
@@ -32,8 +32,9 @@ the tag and requires the same locked checksum.
    host. This is a local reproducibility preflight only; it does not update or
    commit release locks.
 5. Push the metadata changes to `main`, then dispatch **Prepare release** for
-   the exact version. The workflow builds the canonical iOS ZIP and opens a PR
-   that updates both `Package.swift` and `release/artifacts.env`.
+   the exact version. The workflow builds the canonical Apple ZIP with iOS and
+   macOS slices and opens a PR that updates both `Package.swift` and
+   `release/artifacts.env`.
 6. Review and merge that checksum PR. Run strict `scripts/check-release.sh` on
    the merged commit.
 
@@ -45,7 +46,7 @@ or replace an asset under an existing release URL.
 Create and push an annotated tag only after the generated lock PR is merged:
 
 ~~~sh
-version=0.1.1
+version=0.1.2
 git tag -a "v${version}" -m "xray-rust-mobile v${version}"
 git push origin "v${version}"
 ~~~
@@ -55,8 +56,8 @@ The tag workflow:
 - verifies the annotated tag, mobile version, exact core tag/commit/tree/file
   hashes, and adapter snapshots;
 - rebuilds the Swift test XCFramework and runs all Swift tests;
-- independently rebuilds the iOS-only SwiftPM ZIP from the tag and requires
-  its checksum to match the prepared lock;
+- verifies the locked iOS and macOS SwiftPM ZIP and requires its checksum to
+  match the prepared lock;
 - builds/tests the release AAR, checks JNI dependencies and 16 KiB alignment,
   and compiles a minified application consumer from the staged Maven module;
 - creates or resumes a draft GitHub release, uploads all binary assets and

@@ -22,7 +22,7 @@ profile="${PROFILE:-release}"
 out_dir="${APPLE_OUT_DIR:-$MOBILE_ROOT/Artifacts}"
 xcframework="$out_dir/XrayRust.xcframework"
 cargo_target_dir="${APPLE_CARGO_TARGET_DIR:-$MOBILE_ROOT/.build/apple/cargo}"
-include_macos="${APPLE_INCLUDE_MACOS:-0}"
+include_macos="${APPLE_INCLUDE_MACOS:-1}"
 
 [[ -n "$out_dir" && "$out_dir" != "/" ]] || die "unsafe Apple output directory"
 mkdir -p "$out_dir" "$cargo_target_dir"
@@ -32,7 +32,7 @@ cargo_target_dir="$(cd "$cargo_target_dir" && pwd -P)"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 export CARGO_INCREMENTAL=0
 export IPHONEOS_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET"
-export MACOSX_DEPLOYMENT_TARGET="11.0"
+export MACOSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"
 export SOURCE_DATE_EPOCH
 SOURCE_DATE_EPOCH="$(git -C "$core" show -s --format=%ct "$XRAY_RUST_COMMIT")"
 export TZ=UTC

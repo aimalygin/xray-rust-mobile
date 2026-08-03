@@ -10,7 +10,7 @@ version="${1:-}"
   die "usage: $0 $XRAY_MOBILE_VERSION"
 
 "$SCRIPT_DIR/check-release.sh" --prepare
-APPLE_INCLUDE_MACOS=0 "$SCRIPT_DIR/build-apple.sh"
+APPLE_INCLUDE_MACOS=1 "$SCRIPT_DIR/build-apple.sh"
 apple_output="$("$SCRIPT_DIR/package-apple.sh")"
 apple_archive="$(sed -n '1p' <<<"$apple_output")"
 "$SCRIPT_DIR/verify-apple-archive.sh" --structural "$apple_archive"

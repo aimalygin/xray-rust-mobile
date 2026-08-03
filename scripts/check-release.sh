@@ -33,6 +33,21 @@ grep -Fq "let releaseVersion = \"$XRAY_MOBILE_VERSION\"" \
 grep -Fq "VERSION_NAME=$XRAY_MOBILE_VERSION" \
   "$MOBILE_ROOT/android/gradle.properties" ||
   die "Gradle version differs from release/version.env"
+macos_major="${MACOS_DEPLOYMENT_TARGET%%.*}"
+grep -Fq ".macOS(.v$macos_major)" "$MOBILE_ROOT/Package.swift" ||
+  die "Package.swift does not match the macOS deployment target"
+grep -Fq 'include_macos="${APPLE_INCLUDE_MACOS:-1}"' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "Apple builds do not include macOS by default"
+grep -Fq 'export MACOSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "Apple builds do not use the locked macOS deployment target"
+grep -Fq 'APPLE_INCLUDE_MACOS=1 "$SCRIPT_DIR/build-apple.sh"' \
+  "$MOBILE_ROOT/scripts/prepare-release.sh" ||
+  die "local release preparation does not include macOS"
+grep -Fq 'APPLE_INCLUDE_MACOS=1 scripts/build-apple.sh' \
+  "$MOBILE_ROOT/.github/workflows/prepare-release.yml" ||
+  die "Prepare release workflow does not include macOS"
 grep -Eq "^## $XRAY_MOBILE_VERSION - [0-9]{4}-[0-9]{2}-[0-9]{2}$" \
   "$MOBILE_ROOT/CHANGELOG.md" ||
   die "CHANGELOG.md has no dated section for $XRAY_MOBILE_VERSION"

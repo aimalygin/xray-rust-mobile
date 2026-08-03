@@ -34,15 +34,19 @@ xcframework="$temporary/XrayRust.xcframework"
   die "Apple archive has no iOS device slice"
 [[ -f "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" ]] ||
   die "Apple archive has no iOS simulator slice"
+[[ -f "$xcframework/macos-arm64_x86_64/libxray_ffi.a" ]] ||
+  die "Apple archive has no universal macOS slice"
 lipo "$xcframework/ios-arm64/libxray_ffi.a" -verify_arch arm64
 lipo "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" \
+  -verify_arch arm64 x86_64
+lipo "$xcframework/macos-arm64_x86_64/libxray_ffi.a" \
   -verify_arch arm64 x86_64
 
 slice_count="$(
   find "$xcframework" -mindepth 1 -maxdepth 1 -type d -print | wc -l | tr -d ' '
 )"
-[[ "$slice_count" == "2" ]] ||
-  die "release XCFramework must contain exactly two iOS slices"
+[[ "$slice_count" == "3" ]] ||
+  die "release XCFramework must contain two iOS slices and one macOS slice"
 
 while IFS= read -r header; do
   [[ "$(sha256_file "$header")" == "$XRAY_RUST_FFI_HEADER_SHA256" ]] ||
@@ -54,7 +58,7 @@ header_count="$(
     wc -l |
     tr -d ' '
 )"
-[[ "$header_count" == "2" ]] ||
+[[ "$header_count" == "3" ]] ||
   die "release XCFramework must contain one FFI header per slice"
 
 while IFS= read -r module_map; do
@@ -67,7 +71,7 @@ module_map_count="$(
     wc -l |
     tr -d ' '
 )"
-[[ "$module_map_count" == "2" ]] ||
+[[ "$module_map_count" == "3" ]] ||
   die "release XCFramework must contain one module map per slice"
 
 echo "verified Apple release archive: $archive"
