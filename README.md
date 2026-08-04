@@ -1,6 +1,6 @@
 # xray-rust-mobile
 
-Binary iOS, macOS, and Android distribution for
+Binary iOS, tvOS, macOS, and Android distribution for
 [`xray-rust`](https://github.com/aimalygin/xray-rust).
 
 The Rust implementation stays in the core repository. This repository pins one
@@ -14,6 +14,7 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.1.3` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.2` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.1` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.0` | `v0.1.0` | `e4daf171c6c44730312d4e35294b25e60691291f` | `1` |
@@ -31,7 +32,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.1.2"
+        exact: "0.1.3"
     ),
 ]
 ~~~
@@ -53,10 +54,11 @@ Available products:
   import, logging, and DNS preflight;
 - `XrayAppleTunnel` — a ready-to-subclass `NEPacketTunnelProvider`.
 
-Minimum supported versions are iOS 15 and macOS 11. The binary contains `arm64`
-for iOS devices, `arm64` plus `x86_64` for iOS simulators, and a universal
-`arm64` plus `x86_64` macOS slice. `XrayAppleTunnel` APIs that depend on newer
-Network Extension functionality require macOS 13.
+Minimum supported versions are iOS 15, tvOS 17, and macOS 11. The binary
+contains `arm64` device slices and `arm64` plus `x86_64` simulator slices for
+iOS and tvOS, plus a universal `arm64`/`x86_64` macOS slice.
+`XrayAppleTunnel` APIs that depend on newer Network Extension functionality
+require macOS 13.
 
 Low-level lifecycle:
 
@@ -190,7 +192,7 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.1.2")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.1.3")
 }
 ~~~
 
@@ -272,6 +274,8 @@ Apple:
 ~~~sh
 source release/toolchains.env
 rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+rustup toolchain install "$TVOS_RUST_TOOLCHAIN" --profile minimal \
+  --component rust-src
 rustup target add --toolchain "$RUST_TOOLCHAIN" \
   aarch64-apple-darwin \
   x86_64-apple-darwin \

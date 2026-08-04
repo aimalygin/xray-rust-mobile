@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.3 - 2026-08-04
+
+- Added tvOS 17+ support to the published Swift Package and binary
+  XCFramework, with `arm64` device and universal `arm64`/`x86_64` simulator
+  slices.
+
 ## 0.1.2 - 2026-08-03
 
 - Added macOS 11+ support to the published Swift Package and its binary

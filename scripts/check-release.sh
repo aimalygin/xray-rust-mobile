@@ -36,18 +36,33 @@ grep -Fq "VERSION_NAME=$XRAY_MOBILE_VERSION" \
 macos_major="${MACOS_DEPLOYMENT_TARGET%%.*}"
 grep -Fq ".macOS(.v$macos_major)" "$MOBILE_ROOT/Package.swift" ||
   die "Package.swift does not match the macOS deployment target"
+tvos_major="${TVOS_DEPLOYMENT_TARGET%%.*}"
+grep -Fq ".tvOS(.v$tvos_major)" "$MOBILE_ROOT/Package.swift" ||
+  die "Package.swift does not match the tvOS deployment target"
 grep -Fq 'include_macos="${APPLE_INCLUDE_MACOS:-1}"' \
   "$MOBILE_ROOT/scripts/build-apple.sh" ||
   die "Apple builds do not include macOS by default"
 grep -Fq 'export MACOSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"' \
   "$MOBILE_ROOT/scripts/build-apple.sh" ||
   die "Apple builds do not use the locked macOS deployment target"
-grep -Fq 'APPLE_INCLUDE_MACOS=1 "$SCRIPT_DIR/build-apple.sh"' \
+grep -Fq 'include_tvos="${APPLE_INCLUDE_TVOS:-1}"' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "Apple builds do not include tvOS by default"
+grep -Fq 'export TVOS_DEPLOYMENT_TARGET="$TVOS_DEPLOYMENT_TARGET"' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "Apple builds do not use the locked tvOS deployment target"
+grep -Fq 'cargo "+$TVOS_RUST_TOOLCHAIN" build' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "tvOS builds do not use the locked nightly Rust toolchain"
+grep -Fq -- '-Z build-std=std,panic_unwind' \
+  "$MOBILE_ROOT/scripts/build-apple.sh" ||
+  die "tvOS builds do not build std for unsupported Rust targets"
+grep -Fq 'APPLE_INCLUDE_MACOS=1 APPLE_INCLUDE_TVOS=1 "$SCRIPT_DIR/build-apple.sh"' \
   "$MOBILE_ROOT/scripts/prepare-release.sh" ||
-  die "local release preparation does not include macOS"
-grep -Fq 'APPLE_INCLUDE_MACOS=1 scripts/build-apple.sh' \
+  die "local release preparation does not include macOS and tvOS"
+grep -Fq 'APPLE_INCLUDE_MACOS=1 APPLE_INCLUDE_TVOS=1 scripts/build-apple.sh' \
   "$MOBILE_ROOT/.github/workflows/prepare-release.yml" ||
-  die "Prepare release workflow does not include macOS"
+  die "Prepare release workflow does not include macOS and tvOS"
 grep -Eq "^## $XRAY_MOBILE_VERSION - [0-9]{4}-[0-9]{2}-[0-9]{2}$" \
   "$MOBILE_ROOT/CHANGELOG.md" ||
   die "CHANGELOG.md has no dated section for $XRAY_MOBILE_VERSION"
@@ -97,6 +112,9 @@ for workflow in ci.yml prepare-release.yml release.yml; do
     "DEVELOPER_DIR: /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer" \
     "$MOBILE_ROOT/.github/workflows/$workflow" ||
     die "$workflow does not select locked Xcode $XCODE_VERSION"
+  grep -Fq 'rustup toolchain install "$TVOS_RUST_TOOLCHAIN"' \
+    "$MOBILE_ROOT/.github/workflows/$workflow" ||
+    die "$workflow does not install the locked tvOS Rust toolchain"
 done
 
 wrapper_jar_sha="$(sha256_file "$MOBILE_ROOT/android/gradle/wrapper/gradle-wrapper.jar")"

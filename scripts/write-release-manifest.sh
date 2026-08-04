@@ -43,8 +43,10 @@ cat >"$manifest" <<JSON
   },
   "toolchains": {
     "rust": "$RUST_TOOLCHAIN",
+    "tvosRust": "$TVOS_RUST_TOOLCHAIN",
     "xcode": "$XCODE_VERSION",
     "iosDeploymentTarget": "$IOS_DEPLOYMENT_TARGET",
+    "tvosDeploymentTarget": "$TVOS_DEPLOYMENT_TARGET",
     "androidMinSdk": $ANDROID_MIN_SDK,
     "androidCompileSdk": $ANDROID_COMPILE_SDK,
     "androidNdk": "$ANDROID_NDK_VERSION",

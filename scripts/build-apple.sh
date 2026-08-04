@@ -23,6 +23,7 @@ out_dir="${APPLE_OUT_DIR:-$MOBILE_ROOT/Artifacts}"
 xcframework="$out_dir/XrayRust.xcframework"
 cargo_target_dir="${APPLE_CARGO_TARGET_DIR:-$MOBILE_ROOT/.build/apple/cargo}"
 include_macos="${APPLE_INCLUDE_MACOS:-1}"
+include_tvos="${APPLE_INCLUDE_TVOS:-1}"
 
 [[ -n "$out_dir" && "$out_dir" != "/" ]] || die "unsafe Apple output directory"
 mkdir -p "$out_dir" "$cargo_target_dir"
@@ -32,6 +33,7 @@ cargo_target_dir="$(cd "$cargo_target_dir" && pwd -P)"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 export CARGO_INCREMENTAL=0
 export IPHONEOS_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET"
+export TVOS_DEPLOYMENT_TARGET="$TVOS_DEPLOYMENT_TARGET"
 export MACOSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"
 export SOURCE_DATE_EPOCH
 SOURCE_DATE_EPOCH="$(git -C "$core" show -s --format=%ct "$XRAY_RUST_COMMIT")"
@@ -50,12 +52,22 @@ fi
 
 build_target() {
   local target="$1"
-  cargo "+$RUST_TOOLCHAIN" build \
-    --locked \
-    --manifest-path "$core/Cargo.toml" \
-    --package xray-ffi \
-    --target "$target" \
-    "${profile_args[@]}"
+  if [[ "$target" == *"apple-tvos"* ]]; then
+    cargo "+$TVOS_RUST_TOOLCHAIN" build \
+      -Z build-std=std,panic_unwind \
+      --locked \
+      --manifest-path "$core/Cargo.toml" \
+      --package xray-ffi \
+      --target "$target" \
+      "${profile_args[@]}"
+  else
+    cargo "+$RUST_TOOLCHAIN" build \
+      --locked \
+      --manifest-path "$core/Cargo.toml" \
+      --package xray-ffi \
+      --target "$target" \
+      "${profile_args[@]}"
+  fi
 }
 
 target_library() {
@@ -83,6 +95,26 @@ xcframework_args=(
   -headers "$header_dir"
 )
 
+if [[ "$include_tvos" == "1" ]]; then
+  build_target aarch64-apple-tvos
+  build_target aarch64-apple-tvos-sim
+  build_target x86_64-apple-tvos
+  mkdir -p "$slice_dir/tvos-device" "$slice_dir/tvos-simulator"
+  cp \
+    "$(target_library aarch64-apple-tvos)" \
+    "$slice_dir/tvos-device/libxray_ffi.a"
+  lipo -create \
+    "$(target_library aarch64-apple-tvos-sim)" \
+    "$(target_library x86_64-apple-tvos)" \
+    -output "$slice_dir/tvos-simulator/libxray_ffi.a"
+  xcframework_args+=(
+    -library "$slice_dir/tvos-device/libxray_ffi.a"
+    -headers "$header_dir"
+    -library "$slice_dir/tvos-simulator/libxray_ffi.a"
+    -headers "$header_dir"
+  )
+fi
+
 if [[ "$include_macos" == "1" ]]; then
   build_target aarch64-apple-darwin
   build_target x86_64-apple-darwin
@@ -103,6 +135,11 @@ xcodebuild "${xcframework_args[@]}" -output "$xcframework"
 lipo "$xcframework/ios-arm64/libxray_ffi.a" -verify_arch arm64
 lipo "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" \
   -verify_arch arm64 x86_64
+if [[ "$include_tvos" == "1" ]]; then
+  lipo "$xcframework/tvos-arm64/libxray_ffi.a" -verify_arch arm64
+  lipo "$xcframework/tvos-arm64_x86_64-simulator/libxray_ffi.a" \
+    -verify_arch arm64 x86_64
+fi
 if [[ "$include_macos" == "1" ]]; then
   lipo "$xcframework/macos-arm64_x86_64/libxray_ffi.a" \
     -verify_arch arm64 x86_64

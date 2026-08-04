@@ -39,6 +39,15 @@ check_target ios-simulator-arm64 iphonesimulator \
 check_target ios-simulator-x86_64 iphonesimulator \
   "x86_64-apple-ios$IOS_DEPLOYMENT_TARGET-simulator"
 
+if [[ -d "$xcframework/tvos-arm64" ]]; then
+  check_target tvos-device appletvos \
+    "arm64-apple-tvos$TVOS_DEPLOYMENT_TARGET"
+  check_target tvos-simulator-arm64 appletvsimulator \
+    "arm64-apple-tvos$TVOS_DEPLOYMENT_TARGET-simulator"
+  check_target tvos-simulator-x86_64 appletvsimulator \
+    "x86_64-apple-tvos$TVOS_DEPLOYMENT_TARGET-simulator"
+fi
+
 if [[ -d "$xcframework/macos-arm64_x86_64" ]]; then
   check_target macos-arm64 macosx \
     "arm64-apple-macos$MACOS_DEPLOYMENT_TARGET"
