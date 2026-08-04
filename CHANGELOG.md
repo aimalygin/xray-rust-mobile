@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.4 - 2026-08-04
+
+- Repackaged the Apple binary as static frameworks inside the XCFramework.
+  This prevents Xcode `ProcessXCFramework` output collisions on the shared
+  `include/module.modulemap` path when a consumer links another static-library
+  XCFramework. The module name, public API, and static linkage are unchanged.
+
 ## 0.1.3 - 2026-08-04
 
 - Added tvOS 17+ support to the published Swift Package and binary

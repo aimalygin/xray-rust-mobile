@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/_common.sh"
 
 require_command cargo
 require_command lipo
+require_command plutil
 require_command rustup
 require_command xcodebuild
 
@@ -79,6 +80,8 @@ build_target aarch64-apple-ios-sim
 build_target x86_64-apple-ios
 
 slice_dir="$MOBILE_ROOT/.build/apple/slices"
+[[ -n "$slice_dir" && "$slice_dir" != "/" ]] || die "unsafe Apple slice directory"
+rm -rf "$slice_dir"
 mkdir -p "$slice_dir/ios-device" "$slice_dir/ios-simulator"
 cp "$(target_library aarch64-apple-ios)" "$slice_dir/ios-device/libxray_ffi.a"
 lipo -create \
@@ -87,12 +90,52 @@ lipo -create \
   -output "$slice_dir/ios-simulator/libxray_ffi.a"
 
 header_dir="$core/crates/xray-ffi/include"
+framework_template="$SCRIPT_DIR/apple-framework"
+
+make_static_framework() {
+  local binary="$1"
+  local destination="$2"
+  local supported_platform="$3"
+  local minimum_version_key="$4"
+  local minimum_version="$5"
+  local framework="$destination/XrayRust.framework"
+  local info_plist="$framework/Info.plist"
+
+  mkdir -p "$framework/Headers" "$framework/Modules"
+  cp "$binary" "$framework/XrayRust"
+  cp "$header_dir/xray_ffi.h" "$framework/Headers/xray_ffi.h"
+  cp "$framework_template/module.modulemap" \
+    "$framework/Modules/module.modulemap"
+  cp "$framework_template/Info.plist" "$info_plist"
+  plutil -replace CFBundleShortVersionString \
+    -string "$XRAY_MOBILE_VERSION" "$info_plist"
+  plutil -replace CFBundleSupportedPlatforms.0 \
+    -string "$supported_platform" "$info_plist"
+  if [[ "$minimum_version_key" == "MinimumOSVersion" ]]; then
+    plutil -replace MinimumOSVersion -string "$minimum_version" "$info_plist"
+  else
+    plutil -remove MinimumOSVersion "$info_plist"
+    plutil -insert "$minimum_version_key" -string "$minimum_version" "$info_plist"
+  fi
+}
+
+make_static_framework \
+  "$slice_dir/ios-device/libxray_ffi.a" \
+  "$slice_dir/ios-device" \
+  iPhoneOS \
+  MinimumOSVersion \
+  "$IOS_DEPLOYMENT_TARGET"
+make_static_framework \
+  "$slice_dir/ios-simulator/libxray_ffi.a" \
+  "$slice_dir/ios-simulator" \
+  iPhoneSimulator \
+  MinimumOSVersion \
+  "$IOS_DEPLOYMENT_TARGET"
+
 xcframework_args=(
   -create-xcframework
-  -library "$slice_dir/ios-device/libxray_ffi.a"
-  -headers "$header_dir"
-  -library "$slice_dir/ios-simulator/libxray_ffi.a"
-  -headers "$header_dir"
+  -framework "$slice_dir/ios-device/XrayRust.framework"
+  -framework "$slice_dir/ios-simulator/XrayRust.framework"
 )
 
 if [[ "$include_tvos" == "1" ]]; then
@@ -107,11 +150,21 @@ if [[ "$include_tvos" == "1" ]]; then
     "$(target_library aarch64-apple-tvos-sim)" \
     "$(target_library x86_64-apple-tvos)" \
     -output "$slice_dir/tvos-simulator/libxray_ffi.a"
+  make_static_framework \
+    "$slice_dir/tvos-device/libxray_ffi.a" \
+    "$slice_dir/tvos-device" \
+    AppleTVOS \
+    MinimumOSVersion \
+    "$TVOS_DEPLOYMENT_TARGET"
+  make_static_framework \
+    "$slice_dir/tvos-simulator/libxray_ffi.a" \
+    "$slice_dir/tvos-simulator" \
+    AppleTVSimulator \
+    MinimumOSVersion \
+    "$TVOS_DEPLOYMENT_TARGET"
   xcframework_args+=(
-    -library "$slice_dir/tvos-device/libxray_ffi.a"
-    -headers "$header_dir"
-    -library "$slice_dir/tvos-simulator/libxray_ffi.a"
-    -headers "$header_dir"
+    -framework "$slice_dir/tvos-device/XrayRust.framework"
+    -framework "$slice_dir/tvos-simulator/XrayRust.framework"
   )
 fi
 
@@ -123,25 +176,31 @@ if [[ "$include_macos" == "1" ]]; then
     "$(target_library aarch64-apple-darwin)" \
     "$(target_library x86_64-apple-darwin)" \
     -output "$slice_dir/macos/libxray_ffi.a"
+  make_static_framework \
+    "$slice_dir/macos/libxray_ffi.a" \
+    "$slice_dir/macos" \
+    MacOSX \
+    LSMinimumSystemVersion \
+    "$MACOS_DEPLOYMENT_TARGET"
   xcframework_args+=(
-    -library "$slice_dir/macos/libxray_ffi.a"
-    -headers "$header_dir"
+    -framework "$slice_dir/macos/XrayRust.framework"
   )
 fi
 
 rm -rf "$xcframework"
 xcodebuild "${xcframework_args[@]}" -output "$xcframework"
 
-lipo "$xcframework/ios-arm64/libxray_ffi.a" -verify_arch arm64
-lipo "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" \
+lipo "$xcframework/ios-arm64/XrayRust.framework/XrayRust" -verify_arch arm64
+lipo "$xcframework/ios-arm64_x86_64-simulator/XrayRust.framework/XrayRust" \
   -verify_arch arm64 x86_64
 if [[ "$include_tvos" == "1" ]]; then
-  lipo "$xcframework/tvos-arm64/libxray_ffi.a" -verify_arch arm64
-  lipo "$xcframework/tvos-arm64_x86_64-simulator/libxray_ffi.a" \
+  lipo "$xcframework/tvos-arm64/XrayRust.framework/XrayRust" \
+    -verify_arch arm64
+  lipo "$xcframework/tvos-arm64_x86_64-simulator/XrayRust.framework/XrayRust" \
     -verify_arch arm64 x86_64
 fi
 if [[ "$include_macos" == "1" ]]; then
-  lipo "$xcframework/macos-arm64_x86_64/libxray_ffi.a" \
+  lipo "$xcframework/macos-arm64_x86_64/XrayRust.framework/XrayRust" \
     -verify_arch arm64 x86_64
 fi
 
