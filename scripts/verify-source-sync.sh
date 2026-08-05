@@ -23,6 +23,14 @@ compare_file() {
   fi
 }
 
+# The XCFramework ships headerless `.a` slices, so the public C API is vendored
+# into the XrayRustFFI Clang target and must track the pinned core exactly.
+compare_file \
+  "$core/crates/xray-ffi/include/xray_ffi.h" \
+  "$MOBILE_ROOT/Sources/XrayRustFFI/include/xray_ffi.h"
+compare_file \
+  "$core/crates/xray-ffi/include/module.modulemap" \
+  "$MOBILE_ROOT/Sources/XrayRustFFI/include/module.modulemap"
 compare_tree \
   "$core/platform/apple/Sources/XrayMobileAdapter" \
   "$MOBILE_ROOT/Sources/XrayMobileAdapter"

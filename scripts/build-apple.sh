@@ -7,9 +7,24 @@ source "$SCRIPT_DIR/_common.sh"
 
 require_command cargo
 require_command lipo
-require_command plutil
+require_command rustc
 require_command rustup
 require_command xcodebuild
+
+llvm_objcopy="$(resolve_llvm_objcopy)"
+
+# rustup ships std and compiler_builtins as rlibs that already carry an
+# embedded __LLVM,__bitcode section, and rustc copies those objects verbatim
+# into a staticlib. Apple dropped bitcode in Xcode 14, so the section is dead
+# weight: it accounts for well over half of every slice. It cannot be disabled
+# at build time because -C embed-bitcode=no is rejected together with -C lto.
+strip_embedded_bitcode() {
+  local archive="$1"
+  "$llvm_objcopy" \
+    --remove-section=__LLVM,__bitcode \
+    --remove-section=__LLVM,__cmdline \
+    "$archive"
+}
 
 actual_xcode_version="$(xcodebuild -version | sed -n '1s/^Xcode //p')"
 [[ -n "$actual_xcode_version" ]] || die "could not determine the selected Xcode version"
@@ -84,75 +99,33 @@ slice_dir="$MOBILE_ROOT/.build/apple/slices"
 rm -rf "$slice_dir"
 mkdir -p "$slice_dir/ios-device" "$slice_dir/ios-simulator"
 cp "$(target_library aarch64-apple-ios)" "$slice_dir/ios-device/libxray_ffi.a"
+strip_embedded_bitcode "$slice_dir/ios-device/libxray_ffi.a"
 lipo -create \
   "$(target_library aarch64-apple-ios-sim)" \
   "$(target_library x86_64-apple-ios)" \
   -output "$slice_dir/ios-simulator/libxray_ffi.a"
+strip_embedded_bitcode "$slice_dir/ios-simulator/libxray_ffi.a"
 
 header_dir="$core/crates/xray-ffi/include"
-framework_template="$SCRIPT_DIR/apple-framework"
 
-make_static_framework() {
-  local binary="$1"
-  local destination="$2"
-  local supported_platform="$3"
-  local minimum_version_key="$4"
-  local minimum_version="$5"
-  local framework="$destination/XrayRust.framework"
-  local framework_contents="$framework"
-  local info_plist
-
-  if [[ "$supported_platform" == "MacOSX" ]]; then
-    framework_contents="$framework/Versions/A"
-    mkdir -p \
-      "$framework_contents/Headers" \
-      "$framework_contents/Modules" \
-      "$framework_contents/Resources"
-    ln -s A "$framework/Versions/Current"
-    ln -s Versions/Current/Headers "$framework/Headers"
-    ln -s Versions/Current/Modules "$framework/Modules"
-    ln -s Versions/Current/Resources "$framework/Resources"
-    ln -s Versions/Current/XrayRust "$framework/XrayRust"
-    info_plist="$framework_contents/Resources/Info.plist"
-  else
-    mkdir -p "$framework_contents/Headers" "$framework_contents/Modules"
-    info_plist="$framework_contents/Info.plist"
-  fi
-
-  cp "$binary" "$framework_contents/XrayRust"
-  cp "$header_dir/xray_ffi.h" "$framework_contents/Headers/xray_ffi.h"
-  cp "$framework_template/module.modulemap" \
-    "$framework_contents/Modules/module.modulemap"
-  cp "$framework_template/Info.plist" "$info_plist"
-  plutil -replace CFBundleShortVersionString \
-    -string "$XRAY_MOBILE_VERSION" "$info_plist"
-  plutil -replace CFBundleSupportedPlatforms \
-    -json "[\"$supported_platform\"]" "$info_plist"
-  if [[ "$minimum_version_key" == "MinimumOSVersion" ]]; then
-    plutil -replace MinimumOSVersion -string "$minimum_version" "$info_plist"
-  else
-    plutil -remove MinimumOSVersion "$info_plist"
-    plutil -insert "$minimum_version_key" -string "$minimum_version" "$info_plist"
-  fi
-}
-
-make_static_framework \
-  "$slice_dir/ios-device/libxray_ffi.a" \
-  "$slice_dir/ios-device" \
-  iPhoneOS \
-  MinimumOSVersion \
-  "$IOS_DEPLOYMENT_TARGET"
-make_static_framework \
-  "$slice_dir/ios-simulator/libxray_ffi.a" \
-  "$slice_dir/ios-simulator" \
-  iPhoneSimulator \
-  MinimumOSVersion \
-  "$IOS_DEPLOYMENT_TARGET"
+# The XCFramework ships bare `.a` slices and no headers on purpose. Xcode
+# copies the headers of a static-library XCFramework into a flat
+# `$BUILT_PRODUCTS_DIR/include` directory, and the `module.modulemap` name
+# there is fixed, so two such XCFrameworks in one target collide with
+# "Multiple commands produce .../include/module.modulemap". The public API is
+# published from the XrayRustFFI Clang target instead, which vendors these two
+# files from the pinned core.
+for vendored in xray_ffi.h module.modulemap; do
+  cmp -s \
+    "$header_dir/$vendored" \
+    "$MOBILE_ROOT/Sources/XrayRustFFI/include/$vendored" ||
+    die "Sources/XrayRustFFI/include/$vendored differs from $XRAY_RUST_TAG"
+done
 
 xcframework_args=(
   -create-xcframework
-  -framework "$slice_dir/ios-device/XrayRust.framework"
-  -framework "$slice_dir/ios-simulator/XrayRust.framework"
+  -library "$slice_dir/ios-device/libxray_ffi.a"
+  -library "$slice_dir/ios-simulator/libxray_ffi.a"
 )
 
 if [[ "$include_tvos" == "1" ]]; then
@@ -163,25 +136,15 @@ if [[ "$include_tvos" == "1" ]]; then
   cp \
     "$(target_library aarch64-apple-tvos)" \
     "$slice_dir/tvos-device/libxray_ffi.a"
+  strip_embedded_bitcode "$slice_dir/tvos-device/libxray_ffi.a"
   lipo -create \
     "$(target_library aarch64-apple-tvos-sim)" \
     "$(target_library x86_64-apple-tvos)" \
     -output "$slice_dir/tvos-simulator/libxray_ffi.a"
-  make_static_framework \
-    "$slice_dir/tvos-device/libxray_ffi.a" \
-    "$slice_dir/tvos-device" \
-    AppleTVOS \
-    MinimumOSVersion \
-    "$TVOS_DEPLOYMENT_TARGET"
-  make_static_framework \
-    "$slice_dir/tvos-simulator/libxray_ffi.a" \
-    "$slice_dir/tvos-simulator" \
-    AppleTVSimulator \
-    MinimumOSVersion \
-    "$TVOS_DEPLOYMENT_TARGET"
+  strip_embedded_bitcode "$slice_dir/tvos-simulator/libxray_ffi.a"
   xcframework_args+=(
-    -framework "$slice_dir/tvos-device/XrayRust.framework"
-    -framework "$slice_dir/tvos-simulator/XrayRust.framework"
+    -library "$slice_dir/tvos-device/libxray_ffi.a"
+    -library "$slice_dir/tvos-simulator/libxray_ffi.a"
   )
 fi
 
@@ -193,37 +156,35 @@ if [[ "$include_macos" == "1" ]]; then
     "$(target_library aarch64-apple-darwin)" \
     "$(target_library x86_64-apple-darwin)" \
     -output "$slice_dir/macos/libxray_ffi.a"
-  make_static_framework \
-    "$slice_dir/macos/libxray_ffi.a" \
-    "$slice_dir/macos" \
-    MacOSX \
-    LSMinimumSystemVersion \
-    "$MACOS_DEPLOYMENT_TARGET"
+  strip_embedded_bitcode "$slice_dir/macos/libxray_ffi.a"
   xcframework_args+=(
-    -framework "$slice_dir/macos/XrayRust.framework"
+    -library "$slice_dir/macos/libxray_ffi.a"
   )
 fi
 
 rm -rf "$xcframework"
 xcodebuild "${xcframework_args[@]}" -output "$xcframework"
 
-lipo "$xcframework/ios-arm64/XrayRust.framework/XrayRust" -verify_arch arm64
-lipo "$xcframework/ios-arm64_x86_64-simulator/XrayRust.framework/XrayRust" \
+lipo "$xcframework/ios-arm64/libxray_ffi.a" -verify_arch arm64
+lipo "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" \
   -verify_arch arm64 x86_64
 if [[ "$include_tvos" == "1" ]]; then
-  lipo "$xcframework/tvos-arm64/XrayRust.framework/XrayRust" \
+  lipo "$xcframework/tvos-arm64/libxray_ffi.a" \
     -verify_arch arm64
-  lipo "$xcframework/tvos-arm64_x86_64-simulator/XrayRust.framework/XrayRust" \
+  lipo "$xcframework/tvos-arm64_x86_64-simulator/libxray_ffi.a" \
     -verify_arch arm64 x86_64
 fi
 if [[ "$include_macos" == "1" ]]; then
-  lipo "$xcframework/macos-arm64_x86_64/XrayRust.framework/XrayRust" \
+  lipo "$xcframework/macos-arm64_x86_64/libxray_ffi.a" \
     -verify_arch arm64 x86_64
 fi
 
-while IFS= read -r header; do
-  [[ "$(sha256_file "$header")" == "$XRAY_RUST_FFI_HEADER_SHA256" ]] ||
-    die "packaged FFI header checksum differs: $header"
-done < <(find "$xcframework" -path "*/Headers/xray_ffi.h" -type f -print)
+packaged_headers="$(
+  find "$xcframework" \( -name "*.h" -o -name "module.modulemap" \) -print |
+    wc -l |
+    tr -d ' '
+)"
+[[ "$packaged_headers" == "0" ]] ||
+  die "XCFramework must not package headers; they belong to XrayRustFFI"
 
 echo "$xcframework"

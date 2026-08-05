@@ -3,8 +3,8 @@
 import Foundation
 import PackageDescription
 
-let releaseVersion = "0.1.6"
-let releaseChecksum = "cbdf815988f868d06f73f0881b3ee6767b4ec895d7accdc4cb745159eac32da4"
+let releaseVersion = "0.1.7"
+let releaseChecksum = "0000000000000000000000000000000000000000000000000000000000000000"
 let localXCFrameworkPath = "Artifacts/XrayRust.xcframework"
 let packageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localXCFrameworkURL = packageDirectory.appendingPathComponent(
@@ -42,13 +42,22 @@ let package = Package(
     ],
     targets: [
         xrayRustTarget,
+        // The XCFramework ships bare `.a` slices with no headers, so the
+        // public C API is published from here instead. `include/module.modulemap`
+        // is vendored verbatim from the pinned core and declares `module
+        // XrayRust`, which keeps the import name unchanged for the adapters.
+        .target(
+            name: "XrayRustFFI",
+            dependencies: ["XrayRust"],
+            publicHeadersPath: "include"
+        ),
         .target(
             name: "XrayAppleShared"
         ),
         .target(
             name: "XrayMobileAdapter",
             dependencies: [
-                "XrayRust",
+                "XrayRustFFI",
                 "XrayAppleShared",
             ]
         ),
