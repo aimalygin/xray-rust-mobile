@@ -126,8 +126,8 @@ make_static_framework() {
   cp "$framework_template/Info.plist" "$info_plist"
   plutil -replace CFBundleShortVersionString \
     -string "$XRAY_MOBILE_VERSION" "$info_plist"
-  plutil -replace CFBundleSupportedPlatforms.0 \
-    -string "$supported_platform" "$info_plist"
+  plutil -replace CFBundleSupportedPlatforms \
+    -json "[\"$supported_platform\"]" "$info_plist"
   if [[ "$minimum_version_key" == "MinimumOSVersion" ]]; then
     plutil -replace MinimumOSVersion -string "$minimum_version" "$info_plist"
   else

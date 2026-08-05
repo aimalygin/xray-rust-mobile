@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.6 - 2026-08-04
+
+- Fixed generated Apple framework metadata so each slice declares exactly one
+  supported platform in `CFBundleSupportedPlatforms`.
+
 ## 0.1.5 - 2026-08-04
 
 - Repackaged the macOS framework with the standard versioned bundle layout,
