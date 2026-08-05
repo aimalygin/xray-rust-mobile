@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.5 - 2026-08-04
+
+- Repackaged the macOS framework with the standard versioned bundle layout,
+  including `Versions/A`, `Versions/Current`, and top-level compatibility
+  symlinks. The iOS and tvOS framework layouts remain unchanged.
+
 ## 0.1.4 - 2026-08-04
 
 - Repackaged the Apple binary as static frameworks inside the XCFramework.

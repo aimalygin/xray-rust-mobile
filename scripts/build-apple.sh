@@ -99,13 +99,30 @@ make_static_framework() {
   local minimum_version_key="$4"
   local minimum_version="$5"
   local framework="$destination/XrayRust.framework"
-  local info_plist="$framework/Info.plist"
+  local framework_contents="$framework"
+  local info_plist
 
-  mkdir -p "$framework/Headers" "$framework/Modules"
-  cp "$binary" "$framework/XrayRust"
-  cp "$header_dir/xray_ffi.h" "$framework/Headers/xray_ffi.h"
+  if [[ "$supported_platform" == "MacOSX" ]]; then
+    framework_contents="$framework/Versions/A"
+    mkdir -p \
+      "$framework_contents/Headers" \
+      "$framework_contents/Modules" \
+      "$framework_contents/Resources"
+    ln -s A "$framework/Versions/Current"
+    ln -s Versions/Current/Headers "$framework/Headers"
+    ln -s Versions/Current/Modules "$framework/Modules"
+    ln -s Versions/Current/Resources "$framework/Resources"
+    ln -s Versions/Current/XrayRust "$framework/XrayRust"
+    info_plist="$framework_contents/Resources/Info.plist"
+  else
+    mkdir -p "$framework_contents/Headers" "$framework_contents/Modules"
+    info_plist="$framework_contents/Info.plist"
+  fi
+
+  cp "$binary" "$framework_contents/XrayRust"
+  cp "$header_dir/xray_ffi.h" "$framework_contents/Headers/xray_ffi.h"
   cp "$framework_template/module.modulemap" \
-    "$framework/Modules/module.modulemap"
+    "$framework_contents/Modules/module.modulemap"
   cp "$framework_template/Info.plist" "$info_plist"
   plutil -replace CFBundleShortVersionString \
     -string "$XRAY_MOBILE_VERSION" "$info_plist"

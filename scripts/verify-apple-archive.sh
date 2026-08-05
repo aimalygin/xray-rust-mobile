@@ -48,6 +48,21 @@ verify_framework() {
   local binary="$framework/XrayRust"
   local info_plist="$framework/Info.plist"
 
+  if [[ "$supported_platform" == "MacOSX" ]]; then
+    info_plist="$framework/Versions/A/Resources/Info.plist"
+    [[ -L "$framework/Versions/Current" ]] &&
+      [[ "$(readlink "$framework/Versions/Current")" == "A" ]] ||
+      die "Apple archive has no current macOS framework version for $identifier"
+    for entry in Headers Modules Resources XrayRust; do
+      [[ -L "$framework/$entry" ]] ||
+        die "Apple archive has a non-versioned macOS framework $entry for $identifier"
+      [[ "$(readlink "$framework/$entry")" == "Versions/Current/$entry" ]] ||
+        die "Apple archive has an invalid macOS framework $entry link for $identifier"
+    done
+    [[ ! -e "$framework/Info.plist" ]] ||
+      die "Apple archive has a shallow macOS framework Info.plist for $identifier"
+  fi
+
   [[ -f "$binary" ]] || die "Apple archive has no binary for $identifier"
   [[ "$(file "$binary")" == *"current ar archive"* ]] ||
     die "Apple archive binary is not static for $identifier"
@@ -123,8 +138,12 @@ for index in 0 1 2 3 4; do
   [[ "$(plist_value "$root_info_plist" "AvailableLibraries:$index:LibraryPath")" == \
     "XrayRust.framework" ]] ||
     die "Apple archive has an invalid LibraryPath for $identifier"
+  expected_binary_path="XrayRust.framework/XrayRust"
+  if [[ "$identifier" == macos-* ]]; then
+    expected_binary_path="XrayRust.framework/Versions/A/XrayRust"
+  fi
   [[ "$(plist_value "$root_info_plist" "AvailableLibraries:$index:BinaryPath")" == \
-    "XrayRust.framework/XrayRust" ]] ||
+    "$expected_binary_path" ]] ||
     die "Apple archive has an invalid BinaryPath for $identifier"
   if plist_value \
     "$root_info_plist" \
