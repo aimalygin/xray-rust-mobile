@@ -20,7 +20,10 @@ trap 'rm -rf "$package_dir"' EXIT
 
 cp -R "$xcframework" "$package_dir/XrayRust.xcframework"
 xattr -cr "$package_dir/XrayRust.xcframework" 2>/dev/null || true
-find "$package_dir/XrayRust.xcframework" -exec touch -t 198001010000 {} +
+find "$package_dir/XrayRust.xcframework" ! -type l \
+  -exec touch -t 198001010000 {} +
+find "$package_dir/XrayRust.xcframework" -type l \
+  -exec touch -h -t 198001010000 {} +
 
 archive="$dist_dir/XrayRust.xcframework.zip"
 rm -f "$archive"
