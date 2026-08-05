@@ -97,6 +97,9 @@ verify_framework() {
   [[ "$(plist_value "$info_plist" CFBundleSupportedPlatforms:0)" == \
     "$supported_platform" ]] ||
     die "Apple archive has an invalid supported platform for $identifier"
+  if plist_value "$info_plist" CFBundleSupportedPlatforms:1 >/dev/null; then
+    die "Apple archive has multiple supported platforms for $identifier"
+  fi
   [[ "$(plist_value "$info_plist" "$minimum_version_key")" == \
     "$minimum_version" ]] ||
     die "Apple archive has an invalid minimum OS version for $identifier"
