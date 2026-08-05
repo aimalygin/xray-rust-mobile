@@ -14,6 +14,7 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.1.7` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.6` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.5` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
 | `0.1.4` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
@@ -35,7 +36,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.1.6"
+        exact: "0.1.7"
     ),
 ]
 ~~~
@@ -62,6 +63,19 @@ contains `arm64` device slices and `arm64` plus `x86_64` simulator slices for
 iOS and tvOS, plus a universal `arm64`/`x86_64` macOS slice.
 `XrayAppleTunnel` APIs that depend on newer Network Extension functionality
 require macOS 13.
+
+`XrayRust.xcframework` deliberately ships bare `libxray_ffi.a` slices and no
+headers. Xcode copies the headers of a static-library XCFramework into a flat
+per-configuration `include` directory, and the `module.modulemap` name there is
+fixed, so an app that also links another static-library XCFramework — a second
+Xray core, for instance — fails to build with "Multiple commands produce
+.../include/module.modulemap". The public C API is published from the
+`XrayRustFFI` target of this package instead, which vendors `xray_ffi.h` and
+its module map verbatim from the pinned core. `import XrayRust` is unaffected.
+The practical consequence is that the XCFramework must be consumed through
+Swift Package Manager: dropping it straight into an Xcode project provides the
+library but no declared module, so copy the two files from
+[`Sources/XrayRustFFI/include`](Sources/XrayRustFFI/include) alongside it.
 
 Low-level lifecycle:
 
@@ -195,7 +209,7 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.1.6")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.1.7")
 }
 ~~~
 
@@ -276,7 +290,8 @@ Apple:
 
 ~~~sh
 source release/toolchains.env
-rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal \
+  --component llvm-tools
 rustup toolchain install "$TVOS_RUST_TOOLCHAIN" --profile minimal \
   --component rust-src
 rustup target add --toolchain "$RUST_TOOLCHAIN" \

@@ -27,6 +27,25 @@ sha256_file() {
   shasum -a 256 "$1" | awk '{print $1}'
 }
 
+# Locates the llvm-objcopy that ships with the pinned Rust toolchain. Xcode has
+# no objcopy, and its own bitcode_strip is a wrapper over the linker's
+# -bitcode_strip flag, which Apple removed in Xcode 15.
+resolve_llvm_objcopy() {
+  local toolchain="${1:-$RUST_TOOLCHAIN}"
+  local sysroot host candidate
+
+  sysroot="$(rustc "+$toolchain" --print sysroot)" ||
+    die "could not resolve the sysroot for Rust $toolchain"
+  host="$(rustc "+$toolchain" -vV | sed -n 's/^host: //p')"
+  [[ -n "$host" ]] ||
+    die "could not resolve the host triple for Rust $toolchain"
+
+  candidate="$sysroot/lib/rustlib/$host/bin/llvm-objcopy"
+  [[ -x "$candidate" ]] ||
+    die "missing llvm-objcopy; run: rustup component add llvm-tools --toolchain $toolchain"
+  echo "$candidate"
+}
+
 resolve_android_sdk() {
   local candidate
   for candidate in \

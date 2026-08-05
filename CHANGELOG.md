@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 0.1.7 - 2026-08-05
+
+- Repackaged the XCFramework as bare `libxray_ffi.a` slices with no headers and
+  no framework bundles, and moved the public C API into a new `XrayRustFFI`
+  Clang target that vendors `xray_ffi.h` and `module.modulemap` from the pinned
+  core. Xcode copies the headers of a static-library XCFramework into a flat
+  `$BUILT_PRODUCTS_DIR/include` directory where the `module.modulemap` name is
+  fixed, so two such XCFrameworks in one target fail with "Multiple commands
+  produce .../include/module.modulemap". Owning the module in the package keeps
+  that directory out of the build entirely and replaces the hand-assembled
+  static frameworks introduced in 0.1.4, which required synthesized
+  `Info.plist` metadata and versioned macOS bundle symlinks. The vendored
+  module map still declares `module XrayRust`, so `import XrayRust` and the
+  public API are unchanged for consumers.
+- Stripped the dead `__LLVM,__bitcode` section from every Apple slice. rustup
+  ships `std` and `compiler_builtins` as rlibs that already carry embedded
+  bitcode, and rustc copies those objects verbatim into a staticlib, so it
+  accounted for more than half of the published XCFramework. Apple removed
+  bitcode support in Xcode 14 and the linker ignores the section, so the
+  produced binaries are unchanged: linking against a stripped and an unstripped
+  slice yields byte-identical output. The Apple build now requires the
+  `llvm-tools` component of the pinned Rust toolchain, because Xcode's own
+  `bitcode_strip` wraps the linker's `-bitcode_strip` flag, which Apple removed
+  in Xcode 15.
+
 ## 0.1.6 - 2026-08-04
 
 - Fixed generated Apple framework metadata so each slice declares exactly one
