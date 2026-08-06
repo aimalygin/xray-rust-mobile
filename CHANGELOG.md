@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-05
+
+- Repinned the core to [`xray-rust` v0.2.0][core-0.2.0], which fixes file
+  logging initialization inside the iOS Network Extension sandbox.
+  `xray_core_new` failed with "Operation not permitted" because runtime log
+  files were opened by walking every ancestor directory with read access, which
+  the sandbox denies outside the app-group container. Apple platforms now
+  resolve the log path with a single `O_NOFOLLOW_ANY` open, which keeps
+  rejecting symlinks in any path component. That open requires iOS 14.5+ /
+  macOS 11.3+ at runtime: it is within the iOS 15 and tvOS 17 deployment
+  targets, but macOS 11.0–11.2 no longer supports file logging. The C ABI, the
+  Swift and Kotlin adapters, and the published products are unchanged.
+
+[core-0.2.0]: https://github.com/aimalygin/xray-rust/releases/tag/v0.2.0
+
 ## 0.1.7 - 2026-08-05
 
 - Repackaged the XCFramework as bare `libxray_ffi.a` slices with no headers and
