@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-08-10
+
+- Repinned the core to [`xray-rust` v0.3.0][core-0.3.0]. VLESS outbounds now
+  support WebSocket, HTTPUpgrade, gRPC, and XHTTP (including the declared
+  HTTP/3 subset), while TLS connections use Xray-compatible browser
+  fingerprints by default.
+- Made the fd-backed mobile TUN pump recover from transient I/O errors instead
+  of silently stopping packet flow. New read-loop exit, write-loop exit, and
+  transient-I/O counters are exposed through the C ABI and Swift diagnostics;
+  ABI major 1 remains backward compatible through the size-prefixed stats
+  structure.
+- Hardened Apple utun discovery by matching the kernel control id rather than
+  trusting an interface-name socket option. The Swift package now includes the
+  `XrayKernelControl` C target required by the updated adapter.
+- Preserved core status messages when `XrayCoreError` bridges to `NSError`,
+  retained IPv6 default-route capture, and improved imported VLESS profiles
+  with HTTP/TLS/QUIC sniffing and a stable `UseIPv4` DNS query strategy.
+
+[core-0.3.0]: https://github.com/aimalygin/xray-rust/releases/tag/v0.3.0
+
 ## 0.2.0 - 2026-08-05
 
 - Repinned the core to [`xray-rust` v0.2.0][core-0.2.0], which fixes file

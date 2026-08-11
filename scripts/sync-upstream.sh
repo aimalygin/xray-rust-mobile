@@ -28,6 +28,9 @@ sync_tree \
   "$core/platform/apple/Sources/XrayAppleTunnel" \
   "$MOBILE_ROOT/Sources/XrayAppleTunnel"
 sync_tree \
+  "$core/platform/apple/Sources/XrayKernelControl" \
+  "$MOBILE_ROOT/Sources/XrayKernelControl"
+sync_tree \
   "$core/platform/apple/Tests/XrayMobileAdapterTests" \
   "$MOBILE_ROOT/Tests/XrayMobileAdapterTests"
 sync_tree \
@@ -45,6 +48,12 @@ sync_tree \
 cp \
   "$core/platform/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp" \
   "$MOBILE_ROOT/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp"
+cp \
+  "$core/crates/xray-ffi/include/xray_ffi.h" \
+  "$MOBILE_ROOT/Sources/XrayRustFFI/include/xray_ffi.h"
+cp \
+  "$core/crates/xray-ffi/include/module.modulemap" \
+  "$MOBILE_ROOT/Sources/XrayRustFFI/include/module.modulemap"
 
 "$SCRIPT_DIR/verify-source-sync.sh"
 echo "synced adapters from $XRAY_RUST_TAG"

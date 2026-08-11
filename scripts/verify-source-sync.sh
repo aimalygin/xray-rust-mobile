@@ -41,6 +41,9 @@ compare_tree \
   "$core/platform/apple/Sources/XrayAppleTunnel" \
   "$MOBILE_ROOT/Sources/XrayAppleTunnel"
 compare_tree \
+  "$core/platform/apple/Sources/XrayKernelControl" \
+  "$MOBILE_ROOT/Sources/XrayKernelControl"
+compare_tree \
   "$core/platform/apple/Tests/XrayMobileAdapterTests" \
   "$MOBILE_ROOT/Tests/XrayMobileAdapterTests"
 compare_tree \
@@ -60,4 +63,3 @@ compare_file \
   "$MOBILE_ROOT/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp"
 
 echo "verified mobile adapters against $XRAY_RUST_TAG"
-
