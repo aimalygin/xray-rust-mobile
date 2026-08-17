@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.3.1 - 2026-08-16
+
+- Repinned the core to [`xray-rust` v0.3.1][core-0.3.1]. REALITY handshakes
+  now advertise the Xray-core 26.7.28 compatibility version, the fingerprint
+  namespace and eleven-profile modern pool match Xray-core v26.7.28, and the
+  three current explicit browser-profile names are available in the Apple API.
+- Added optional Android `XrayCore.create(fileLoggingDirectory = ...)` support
+  for bounded, app-controlled diagnostic exports. File logging remains disabled
+  unless the host explicitly supplies an existing private directory.
+
+[core-0.3.1]: https://github.com/aimalygin/xray-rust/releases/tag/v0.3.1
+
 ## 0.3.0 - 2026-08-10
 
 - Repinned the core to [`xray-rust` v0.3.0][core-0.3.0]. VLESS outbounds now

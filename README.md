@@ -14,6 +14,7 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.3.1` | `v0.3.1` | `9dba6c222ce24d347fc97fbedfedadaeb16a512c` | `1` |
 | `0.3.0` | `v0.3.0` | `774e08d0a22a2ff30a2ade38b9d616efe43661e7` | `1` |
 | `0.2.0` | `v0.2.0` | `536d2640fe0fc2df87b61b128b21d3886d72951d` | `1` |
 | `0.1.7` | `v0.1.1` | `ae14066eedca532e247503a19481263a437011c4` | `1` |
@@ -38,7 +39,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.3.0"
+        exact: "0.3.1"
     ),
 ]
 ~~~
@@ -211,9 +212,26 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.3.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.3.1")
 }
 ~~~
+
+Hosts that expose an explicit debug-logging preference can enable the core's
+sanitized access and error logs by creating a private directory before loading
+the configuration:
+
+~~~kotlin
+val logDirectory = File(context.filesDir, "xray-logs").apply { mkdirs() }
+val core = XrayCore.create(
+    configJson = configJson,
+    vpnService = vpnService,
+    fileLoggingDirectory = logDirectory,
+)
+~~~
+
+Omit `fileLoggingDirectory` during normal operation. The core never enables
+file logging by itself, and the host remains responsible for bounding and
+exporting the generated `xray-access.log` and `xray-error.log` files.
 
 GitHub currently requires package credentials even for public Maven packages;
 use a personal access token (classic) with `read:packages`. Keep credentials
