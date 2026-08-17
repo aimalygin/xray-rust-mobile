@@ -14,6 +14,7 @@ reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.3.2` | `v0.3.2` | `850813037cd5c018348ec08b44b0b926414e17e8` | `1` |
 | `0.3.1` | `v0.3.1` | `9dba6c222ce24d347fc97fbedfedadaeb16a512c` | `1` |
 | `0.3.0` | `v0.3.0` | `774e08d0a22a2ff30a2ade38b9d616efe43661e7` | `1` |
 | `0.2.0` | `v0.2.0` | `536d2640fe0fc2df87b61b128b21d3886d72951d` | `1` |
@@ -39,7 +40,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.3.1"
+        exact: "0.3.2"
     ),
 ]
 ~~~
@@ -212,7 +213,7 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.3.1")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.3.2")
 }
 ~~~
 

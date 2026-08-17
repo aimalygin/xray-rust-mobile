@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.3.2 - 2026-08-16
+
+- Repinned the core to [`xray-rust` v0.3.2][core-0.3.2]. Apple VLESS URL
+  imports now preserve an omitted `flow` instead of silently enabling
+  `xtls-rprx-vision`, matching the share-link semantics and server-side client
+  configuration.
+
+[core-0.3.2]: https://github.com/aimalygin/xray-rust/releases/tag/v0.3.2
+
 ## 0.3.1 - 2026-08-16
 
 - Repinned the core to [`xray-rust` v0.3.1][core-0.3.1]. REALITY handshakes
