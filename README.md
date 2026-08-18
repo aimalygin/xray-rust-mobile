@@ -1,14 +1,29 @@
 # xray-rust-mobile
 
-Binary iOS, tvOS, macOS, and Android distribution for
-[`xray-rust`](https://github.com/aimalygin/xray-rust).
+Native iOS, tvOS, macOS, and Android SDK packages for
+[`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
+ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
+for host applications.
 
-The Rust implementation stays in the core repository. This repository pins one
-reviewed core commit, carries the native Swift/Kotlin adapters, and publishes:
+Each release pins one reviewed core commit and publishes:
 
 - `XrayRust.xcframework.zip` for Swift Package Manager;
 - `io.github.aimalygin:xray-rust-mobile` as an Android AAR/Maven module;
 - matching checksums and a release manifest.
+
+An Apple Packet Tunnel extension can use the provided implementation directly:
+
+~~~swift
+import XrayAppleTunnel
+
+final class PacketTunnelProvider: XrayPacketTunnelProvider {}
+~~~
+
+The underlying core measured 3.84 MiB idle resident memory and 18.3 MiB with
+1,000 held SOCKS flows in the published synthetic localhost benchmark. See the
+[full results and methodology](https://github.com/aimalygin/xray-rust/blob/main/docs/benchmarks/results.md).
+
+This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 ## Version mapping
 
@@ -304,8 +319,8 @@ The scripts prefer a clean sibling checkout at `../xray-rust`; otherwise they
 clone the exact commit from `release/core.env` into `.build/core`.
 
 Apple requires Xcode 16.4. `scripts/build-apple.sh` rejects another selected
-Xcode for release reproducibility. For a local, non-release experiment only,
-set `XRAY_ALLOW_UNPINNED_XCODE=1`.
+Xcode for release reproducibility. To allow a different Xcode for a local
+non-release build, set `XRAY_ALLOW_UNPINNED_XCODE=1`.
 
 Apple:
 

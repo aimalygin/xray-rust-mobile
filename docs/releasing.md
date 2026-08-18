@@ -12,7 +12,8 @@ retains optional `MAVEN_SIGNING_KEY`/`MAVEN_SIGNING_PASSWORD` support for a
 future Maven Central publication. Enable immutable GitHub releases before
 publishing a public version. Apple release artifacts must be built with the
 Xcode version locked in `release/toolchains.env`; using another selected Xcode
-is allowed only for local experiments and cannot produce the locked release.
+is allowed only for local non-release builds and cannot produce the locked
+release.
 
 The prepare workflow artifact is retained for 30 days. The tag workflow only
 publishes the exact locked Apple archive after rechecking its checksum and
@@ -65,7 +66,7 @@ The tag workflow:
 - publishes the Maven coordinate only after the draft assets are complete,
   detecting absent, complete, or partially published retry states;
 - verifies the remote Maven AAR, POM, module metadata, and sources JAR, then
-  promotes the draft to a prerelease.
+  publishes the draft as the latest stable GitHub release.
 
 If GitHub Packages contains only part of the four-file Maven coordinate, the
 workflow stops deliberately: publishing over a partial version is unsafe.
@@ -75,7 +76,7 @@ not delete or replace a complete coordinate.
 
 After publication, resolve the exact SPM version from a clean sample app and
 the exact Maven coordinate from a clean external Gradle consumer and record the
-result. With release immutability enabled, a published prerelease cannot be
-converted into a stable release; decide that status before publishing. This
-workflow intentionally publishes pre-1.0 versions as prereleases. Fixes use a
-new SDK version.
+result. With release immutability enabled, a published release cannot be
+changed; fixes use a new SDK version. Releases published by the earlier
+workflow remain immutable prereleases, while new versions are published as
+stable releases regardless of whether their semantic version is below 1.0.
