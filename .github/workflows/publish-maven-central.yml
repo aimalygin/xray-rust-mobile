@@ -1,0 +1,201 @@
+name: Publish Maven Central
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag to publish
+        required: true
+        type: string
+      automatic:
+        description: Publish automatically after validation
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: maven-central
+    env:
+      GH_TOKEN: ${{ github.token }}
+      XRAY_RELEASE_TAG: ${{ inputs.tag }}
+      PUBLISHING_TYPE: ${{ inputs.automatic && 'AUTOMATIC' || 'USER_MANAGED' }}
+      MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
+      MAVEN_SIGNING_PASSWORD: ${{ secrets.MAVEN_SIGNING_PASSWORD }}
+    steps:
+      - name: Check out exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify release identity and required credentials
+        run: |
+          scripts/check-release.sh "$XRAY_RELEASE_TAG"
+          source release/version.env
+          [[ "$XRAY_RELEASE_TAG" == "v$XRAY_MOBILE_VERSION" ]]
+          [[ -n "$MAVEN_CENTRAL_USERNAME" ]]
+          [[ -n "$MAVEN_CENTRAL_PASSWORD" ]]
+          [[ -n "$MAVEN_SIGNING_KEY" ]]
+
+      - name: Download immutable Maven release bundle
+        run: |
+          source release/version.env
+          mkdir -p incoming
+          gh release download "$XRAY_RELEASE_TAG" \
+            --pattern "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" \
+            --dir incoming
+
+      - name: Assemble and sign Central deployment bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          source release/version.env
+          group="$(awk -F= '$1 == "GROUP" {print $2}' android/gradle.properties)"
+          artifact="$(awk -F= '$1 == "POM_ARTIFACT_ID" {print $2}' android/gradle.properties)"
+          group_path="${group//.//}"
+          archive="incoming/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+          root="$RUNNER_TEMP/central-root"
+          version_dir="$root/$group_path/$artifact/$XRAY_MOBILE_VERSION"
+          mkdir -p "$root"
+          unzip -q "$archive" -d "$root"
+          rm -f "$root/$group_path/$artifact"/maven-metadata.xml*
+          [[ -f "$version_dir/$artifact-$XRAY_MOBILE_VERSION.aar" ]]
+          [[ -f "$version_dir/$artifact-$XRAY_MOBILE_VERSION.pom" ]]
+          [[ -f "$version_dir/$artifact-$XRAY_MOBILE_VERSION-sources.jar" ]]
+
+          javadoc="$version_dir/$artifact-$XRAY_MOBILE_VERSION-javadoc.jar"
+          if [[ ! -f "$javadoc" ]]; then
+            docs="$RUNNER_TEMP/central-javadoc"
+            mkdir -p "$docs"
+            {
+              echo "xray-rust-mobile $XRAY_MOBILE_VERSION"
+              echo
+              echo "API and integration documentation:"
+              echo "https://github.com/aimalygin/xray-rust-mobile/tree/$XRAY_RELEASE_TAG"
+            } > "$docs/README.md"
+            jar --create --file "$javadoc" -C "$docs" README.md
+          fi
+
+          find "$version_dir" -maxdepth 1 -type f \
+            ! -name '*.asc' ! -name '*.md5' ! -name '*.sha1' \
+            ! -name '*.sha256' ! -name '*.sha512' -print0 |
+            while IFS= read -r -d '' file; do
+              md5sum "$file" | awk '{print $1}' > "$file.md5"
+              sha1sum "$file" | awk '{print $1}' > "$file.sha1"
+              sha256sum "$file" | awk '{print $1}' > "$file.sha256"
+              sha512sum "$file" | awk '{print $1}' > "$file.sha512"
+            done
+
+          printf '%s' "$MAVEN_SIGNING_KEY" | gpg --batch --import
+          signing_key_id="$(
+            gpg --batch --with-colons --list-secret-keys |
+              awk -F: '$1 == "sec" {print $5; exit}'
+          )"
+          [[ -n "$signing_key_id" ]]
+          find "$version_dir" -maxdepth 1 -type f \
+            ! -name '*.asc' ! -name '*.md5' ! -name '*.sha1' \
+            ! -name '*.sha256' ! -name '*.sha512' -print0 |
+            while IFS= read -r -d '' file; do
+              gpg --batch --yes --armor --detach-sign \
+                --pinentry-mode loopback \
+                --passphrase "$MAVEN_SIGNING_PASSWORD" \
+                --local-user "$signing_key_id" \
+                --output "$file.asc" \
+                "$file"
+            done
+
+          names=(
+            "$artifact-$XRAY_MOBILE_VERSION.aar"
+            "$artifact-$XRAY_MOBILE_VERSION.pom"
+            "$artifact-$XRAY_MOBILE_VERSION.module"
+            "$artifact-$XRAY_MOBILE_VERSION-sources.jar"
+            "$artifact-$XRAY_MOBILE_VERSION-javadoc.jar"
+          )
+          for name in "${names[@]}"; do
+            file="$version_dir/$name"
+            [[ -f "$file" ]]
+            [[ -f "$file.asc" ]]
+            [[ -f "$file.md5" ]]
+            [[ -f "$file.sha1" ]]
+          done
+
+          bundle="$RUNNER_TEMP/xray-rust-mobile-$XRAY_MOBILE_VERSION-central.zip"
+          (
+            cd "$root"
+            find . -type f -print | LC_ALL=C sort | zip -q -X "$bundle" -@
+          )
+          echo "path=$bundle" >> "$GITHUB_OUTPUT"
+          echo "name=xray-rust-mobile-$XRAY_MOBILE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bundle to Central Publisher Portal
+        id: upload
+        env:
+          BUNDLE_PATH: ${{ steps.bundle.outputs.path }}
+          DEPLOYMENT_NAME: ${{ steps.bundle.outputs.name }}
+        run: |
+          auth="$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)"
+          deployment_id="$(
+            curl --fail --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $auth" \
+              --form "bundle=@$BUNDLE_PATH;type=application/octet-stream" \
+              "https://central.sonatype.com/api/v1/publisher/upload?name=$DEPLOYMENT_NAME&publishingType=$PUBLISHING_TYPE"
+          )"
+          [[ -n "$deployment_id" ]]
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for validation or publication
+        env:
+          DEPLOYMENT_ID: ${{ steps.upload.outputs.deployment_id }}
+        run: |
+          auth="$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)"
+          for attempt in {1..60}; do
+            response="$(
+              curl --fail --silent --show-error \
+                --request POST \
+                --header "Authorization: Bearer $auth" \
+                "https://central.sonatype.com/api/v1/publisher/status?id=$DEPLOYMENT_ID"
+            )"
+            state="$(jq -r '.deploymentState' <<<"$response")"
+            case "$state" in
+              PUBLISHED)
+                echo "Maven Central deployment published: $DEPLOYMENT_ID"
+                exit 0
+                ;;
+              VALIDATED)
+                if [[ "$PUBLISHING_TYPE" == "USER_MANAGED" ]]; then
+                  echo "Deployment validated and awaits approval: $DEPLOYMENT_ID"
+                  echo "### Maven Central deployment validated" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Deployment ID: \`$DEPLOYMENT_ID\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Publish it from https://central.sonatype.com/publishing" >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                fi
+                ;;
+              FAILED)
+                jq . <<<"$response"
+                exit 1
+                ;;
+              PENDING|VALIDATING|PUBLISHING) ;;
+              *)
+                echo "Unexpected Central state: $state" >&2
+                jq . <<<"$response"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for Maven Central: $DEPLOYMENT_ID" >&2
+          exit 1

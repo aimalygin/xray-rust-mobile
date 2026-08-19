@@ -354,6 +354,7 @@ jobs:
             "$artifact-$XRAY_MOBILE_VERSION.pom"
             "$artifact-$XRAY_MOBILE_VERSION.module"
             "$artifact-$XRAY_MOBILE_VERSION-sources.jar"
+            "$artifact-$XRAY_MOBILE_VERSION-javadoc.jar"
           )
           found=0
           missing=0
@@ -430,7 +431,8 @@ jobs:
             "$artifact-$XRAY_MOBILE_VERSION.aar" \
             "$artifact-$XRAY_MOBILE_VERSION.pom" \
             "$artifact-$XRAY_MOBILE_VERSION.module" \
-            "$artifact-$XRAY_MOBILE_VERSION-sources.jar"; do
+            "$artifact-$XRAY_MOBILE_VERSION-sources.jar" \
+            "$artifact-$XRAY_MOBILE_VERSION-javadoc.jar"; do
             cmp "$expected/$name" "$rebuilt/$name"
           done
 
@@ -459,6 +461,7 @@ jobs:
             "$artifact-$XRAY_MOBILE_VERSION.pom"
             "$artifact-$XRAY_MOBILE_VERSION.module"
             "$artifact-$XRAY_MOBILE_VERSION-sources.jar"
+            "$artifact-$XRAY_MOBILE_VERSION-javadoc.jar"
           )
           for attempt in {1..12}; do
             ready=1

@@ -7,7 +7,7 @@ contain the SHA-256 checksum of the exact ZIP stored at its tagged URL.
 
 Before the first release, configure GitHub Actions to allow this repository to
 write packages and to create pull requests. The GitHub Packages workflow
-intentionally publishes the four unsigned Gradle artifacts; the Gradle project
+intentionally publishes the five unsigned Gradle artifacts; the Gradle project
 retains optional `MAVEN_SIGNING_KEY`/`MAVEN_SIGNING_PASSWORD` support for a
 future Maven Central publication. Enable immutable GitHub releases before
 publishing a public version. Apple release artifacts must be built with the
@@ -18,6 +18,33 @@ release.
 The prepare workflow artifact is retained for 30 days. The tag workflow only
 publishes the exact locked Apple archive after rechecking its checksum and
 structure; a separate job rebuilds the sources and tests the Apple products.
+
+## Maven Central setup
+
+GitHub Packages remains the release workflow's authenticated publication
+target. Maven Central publication is a separate, owner-approved workflow that
+reuses the immutable Maven bundle attached to an existing stable release.
+
+1. Sign in to the [Central Publisher Portal](https://central.sonatype.com/) with
+   the GitHub account that owns `aimalygin`. Verify that the automatically
+   provisioned namespace `io.github.aimalygin` is present.
+2. Generate a Central user token and add its username and password to the
+   `maven-central` GitHub environment as `MAVEN_CENTRAL_USERNAME` and
+   `MAVEN_CENTRAL_PASSWORD`.
+3. Add an ASCII-armored OpenPGP private key and its passphrase as
+   `MAVEN_SIGNING_KEY` and `MAVEN_SIGNING_PASSWORD` in the same environment.
+   Publish the corresponding primary public key to a Central-supported key
+   server such as `keyserver.ubuntu.com`; do not sign with a signing subkey.
+4. Protect the environment with required reviewer approval. Dispatch
+   **Publish Maven Central** with an existing stable tag. Leave `automatic`
+   disabled for the first publication, inspect the validated deployment in the
+   Portal, and publish it there. Later releases may use automatic publication.
+
+The workflow removes repository-level `maven-metadata.xml`, adds the required
+Javadoc artifact, regenerates checksums, signs every version artifact, uploads
+the bundle through the official Central Publisher Portal API, and waits for a
+validated or published state. Maven Central is immutable, so never retry a
+version that has already reached `PUBLISHED`.
 
 ## Prepare
 
@@ -65,13 +92,14 @@ The tag workflow:
   provenance metadata, and downloads them again for byte-for-byte comparison;
 - publishes the Maven coordinate only after the draft assets are complete,
   detecting absent, complete, or partially published retry states;
-- verifies the remote Maven AAR, POM, module metadata, and sources JAR, then
+- verifies the remote Maven AAR, POM, module metadata, sources JAR, and Javadoc
+  JAR, then
   publishes the draft as the latest stable GitHub release.
 
-If GitHub Packages contains only part of the four-file Maven coordinate, the
+If GitHub Packages contains only part of the five-file Maven coordinate, the
 workflow stops deliberately: publishing over a partial version is unsafe.
 Delete that incomplete package version in the repository's Packages settings,
-confirm that all four version URLs return 404, and rerun the tag workflow. Do
+confirm that all five version URLs return 404, and rerun the tag workflow. Do
 not delete or replace a complete coordinate.
 
 After publication, resolve the exact SPM version from a clean sample app and

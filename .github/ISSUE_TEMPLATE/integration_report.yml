@@ -1,0 +1,61 @@
+name: Integration report
+description: Share a successful integration, compatibility result, or reproducible integration gap.
+title: "[Integration]: "
+labels:
+  - integration
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for integrating xray-rust-mobile. Do not include production endpoints,
+        credentials, private keys, provisioning profiles, or unredacted logs.
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK version
+      placeholder: v0.3.2
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - tvOS
+        - macOS
+        - Android
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Device or simulator, OS version, IDE/toolchain, and integration method.
+      placeholder: iPhone 15, iOS 18.6, Xcode 16.4, SwiftPM
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Successful integration
+        - Compatibility issue
+        - Performance result
+        - Documentation gap
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Describe what you integrated, what worked, and any reproducible gap.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Include sanitized commands, measurements, logs, or a minimal public sample.
