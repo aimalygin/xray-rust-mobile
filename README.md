@@ -246,18 +246,8 @@ Omit `fileLoggingDirectory` during normal operation. The core never enables
 file logging by itself, and the host remains responsible for bounding and
 exporting the generated `xray-access.log` and `xray-error.log` files.
 
-GitHub currently requires package credentials even for public Maven packages;
-use a personal access token (classic) with `read:packages`. Keep credentials
-outside the project, for example in `~/.gradle/gradle.properties`:
-
-~~~properties
-gpr.user=<your GitHub username>
-gpr.key=<PAT classic with read:packages>
-~~~
-
-Every GitHub release also contains the standalone AAR. Maven Central
-publication can be added after the namespace and signing credentials are
-provisioned.
+Every GitHub release also contains the standalone AAR for consumers that need
+to inspect or integrate the release artifact directly.
 
 The AAR supports API 24+ and contains `arm64-v8a`, `armeabi-v7a`, `x86`, and
 `x86_64`, with 16 KiB page-aligned native libraries. It merges the
