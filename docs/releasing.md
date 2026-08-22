@@ -5,12 +5,12 @@ contain the SHA-256 checksum of the exact ZIP stored at its tagged URL.
 
 ## Repository setup
 
-Before the first release, configure GitHub Actions to allow this repository to
-write packages and to create pull requests. The GitHub Packages workflow
-intentionally publishes the five unsigned Gradle artifacts; the Gradle project
-retains optional `MAVEN_SIGNING_KEY`/`MAVEN_SIGNING_PASSWORD` support for a
-future Maven Central publication. Enable immutable GitHub releases before
-publishing a public version. Apple release artifacts must be built with the
+Configure GitHub Actions to allow this repository to write packages and to
+create pull requests. The release workflow publishes the five unsigned Gradle
+artifacts to GitHub Packages as an authenticated mirror. The separate Maven
+Central workflow signs the immutable release bundle and is the public Android
+distribution path. Enable immutable GitHub releases before publishing a public
+version. Apple release artifacts must be built with the
 Xcode version locked in `release/toolchains.env`; using another selected Xcode
 is allowed only for local non-release builds and cannot produce the locked
 release.
@@ -21,9 +21,10 @@ structure; a separate job rebuilds the sources and tests the Apple products.
 
 ## Maven Central setup
 
-GitHub Packages remains the release workflow's authenticated publication
-target. Maven Central publication is a separate, owner-approved workflow that
-reuses the immutable Maven bundle attached to an existing stable release.
+GitHub Packages remains an authenticated mirror produced by the release
+workflow. Maven Central is the public consumer target and uses a separate,
+owner-approved workflow that reuses the immutable Maven bundle attached to an
+existing stable release.
 
 1. Sign in to the [Central Publisher Portal](https://central.sonatype.com/) with
    the GitHub account that owns `aimalygin`. Verify that the automatically

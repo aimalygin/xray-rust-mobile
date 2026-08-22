@@ -1,5 +1,7 @@
 # xray-rust-mobile
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.aimalygin/xray-rust-mobile.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile)
+
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
 Native iOS, tvOS, macOS, and Android SDK packages for
@@ -202,7 +204,8 @@ behalf.
 
 ## Android with Gradle
 
-The default publication target is GitHub Packages:
+The Android SDK is published to Maven Central and does not require GitHub
+credentials.
 
 In `settings.gradle.kts`:
 
@@ -211,17 +214,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri(
-                "https://maven.pkg.github.com/aimalygin/xray-rust-mobile"
-            )
-            credentials {
-                username = providers.gradleProperty("gpr.user").orNull
-                    ?: System.getenv("GITHUB_ACTOR")
-                password = providers.gradleProperty("gpr.key").orNull
-                    ?: System.getenv("GITHUB_TOKEN")
-            }
-        }
     }
 }
 ~~~
@@ -233,6 +225,9 @@ dependencies {
     implementation("io.github.aimalygin:xray-rust-mobile:0.3.2")
 }
 ~~~
+
+The published coordinate, POM, signatures, sources, and API documentation are
+available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.3.2).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
