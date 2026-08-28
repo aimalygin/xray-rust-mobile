@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.4.1-rc.2 - 2026-08-28
+
+- Repinned the SDK to the source-only [`xray-rust` v0.4.1-rc.2][core-0.4.1-rc.2]
+  release candidate. It synchronizes the supported Xray-core v26.7.28
+  configuration surface, including stricter plaintext VLESS validation, DNS
+  outbound response controls, certificate pinning and peer-name verification,
+  and target-compatible XHTTP session identifiers.
+- This mobile RC is distributed only as a GitHub prerelease. Android is
+  available as a standalone AAR asset for direct evaluation; no Maven archive
+  or coordinate is published to GitHub Packages or Maven Central.
+
+[core-0.4.1-rc.2]: https://github.com/aimalygin/xray-rust/releases/tag/v0.4.1-rc.2
+
 ## 0.4.0 - 2026-08-27
 
 - Repinned the core to [`xray-rust` v0.4.0][core-0.4.0]. Apple VLESS URL

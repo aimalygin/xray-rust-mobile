@@ -9,11 +9,16 @@ Native iOS, tvOS, macOS, and Android SDK packages for
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
 for host applications.
 
-Each release pins one reviewed core commit and publishes:
+Each stable release pins one reviewed core commit and publishes:
 
 - `XrayRust.xcframework.zip` for Swift Package Manager;
 - `io.github.aimalygin:xray-rust-mobile` as an Android AAR/Maven module;
 - matching checksums and a release manifest.
+
+Release candidates use `MAJOR.MINOR.PATCH-rc.N` tags and are GitHub
+prereleases. They contain the verified XCFramework, standalone AAR,
+the raw project `LICENSE`, third-party notices, checksums, and manifest, but
+are never published to GitHub Packages or Maven Central.
 
 An Apple Packet Tunnel extension can use the provided implementation directly:
 
@@ -206,8 +211,9 @@ behalf.
 
 ## Android with Gradle
 
-The Android SDK is published to Maven Central and does not require GitHub
-credentials.
+Stable Android SDK versions are published to Maven Central and do not require
+GitHub credentials. RC builds are available only as standalone AAR assets on
+their GitHub prereleases.
 
 In `settings.gradle.kts`:
 
@@ -344,6 +350,10 @@ rustup target add --toolchain "$RUST_TOOLCHAIN" \
 scripts/build-android.sh
 scripts/package-android.sh
 ~~~
+
+For an RC preflight, `scripts/package-android.sh --standalone-only` keeps the
+locally staged Maven repository available for consumer smoke tests while
+omitting the Maven archive from the distribution.
 
 Generated native artifacts live under ignored `Artifacts/`, `.build/`, and
 `dist/` directories. They are never committed to Git.

@@ -6,21 +6,70 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
 
 dist_dir="${1:-$MOBILE_ROOT/dist/v$XRAY_MOBILE_VERSION}"
+release_channel="${2:-$("$SCRIPT_DIR/release-channel.sh" "$XRAY_MOBILE_VERSION")}"
+expected_channel="$("$SCRIPT_DIR/release-channel.sh" "$XRAY_MOBILE_VERSION")"
+[[ "$release_channel" == "$expected_channel" ]] ||
+  die "release channel $release_channel does not match $XRAY_MOBILE_VERSION"
 apple="$dist_dir/XrayRust.xcframework.zip"
 android="$dist_dir/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
 maven="$dist_dir/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+license="$dist_dir/LICENSE"
+notices="$dist_dir/THIRD_PARTY_NOTICES.md"
 [[ -f "$apple" ]] || die "missing Apple release artifact: $apple"
 [[ -f "$android" ]] || die "missing Android release artifact: $android"
-[[ -f "$maven" ]] || die "missing Maven repository archive: $maven"
 
 apple_sha="$(sha256_file "$apple")"
 android_sha="$(sha256_file "$android")"
-maven_sha="$(sha256_file "$maven")"
 manifest="$dist_dir/release-manifest.json"
+
+case "$release_channel" in
+  stable)
+    [[ -f "$maven" ]] || die "missing Maven repository archive: $maven"
+    maven_sha="$(sha256_file "$maven")"
+    release_fields=""
+    printf -v artifact_fields \
+      '    "XrayRust.xcframework.zip": "%s",\n    "xray-rust-mobile-%s.aar": "%s",\n    "xray-rust-mobile-%s-maven.zip": "%s"' \
+      "$apple_sha" \
+      "$XRAY_MOBILE_VERSION" \
+      "$android_sha" \
+      "$XRAY_MOBILE_VERSION" \
+      "$maven_sha"
+    checksum_files=(
+      XrayRust.xcframework.zip
+      "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
+      "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+    )
+    ;;
+  prerelease)
+    [[ -f "$license" ]] || die "missing prerelease license: $license"
+    [[ -f "$notices" ]] || die "missing prerelease notices: $notices"
+    [[ ! -e "$maven" ]] ||
+      die "prerelease distribution must not contain a Maven repository archive"
+    license_sha="$(sha256_file "$license")"
+    notices_sha="$(sha256_file "$notices")"
+    release_fields=$'  "releaseChannel": "prerelease",\n  "remoteMavenPublication": false,\n'
+    printf -v artifact_fields \
+      '    "XrayRust.xcframework.zip": "%s",\n    "xray-rust-mobile-%s.aar": "%s",\n    "LICENSE": "%s",\n    "THIRD_PARTY_NOTICES.md": "%s"' \
+      "$apple_sha" \
+      "$XRAY_MOBILE_VERSION" \
+      "$android_sha" \
+      "$license_sha" \
+      "$notices_sha"
+    checksum_files=(
+      XrayRust.xcframework.zip
+      "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
+      LICENSE
+      THIRD_PARTY_NOTICES.md
+    )
+    ;;
+  *)
+    die "unsupported release channel: $release_channel"
+    ;;
+esac
 
 cat >"$manifest" <<JSON
 {
-  "mobileVersion": "$XRAY_MOBILE_VERSION",
+${release_fields}  "mobileVersion": "$XRAY_MOBILE_VERSION",
   "ffiAbiMajor": $XRAY_FFI_ABI_MAJOR,
   "core": {
     "repository": "$XRAY_RUST_REPOSITORY",
@@ -37,9 +86,7 @@ cat >"$manifest" <<JSON
     "name": "$APPLE_ARTIFACT_NAME"
   },
   "artifacts": {
-    "XrayRust.xcframework.zip": "$apple_sha",
-    "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar": "$android_sha",
-    "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip": "$maven_sha"
+$artifact_fields
   },
   "toolchains": {
     "rust": "$RUST_TOOLCHAIN",
@@ -61,11 +108,7 @@ JSON
 
 (
   cd "$dist_dir"
-  shasum -a 256 \
-    XrayRust.xcframework.zip \
-    "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar" \
-    "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" \
-    release-manifest.json >SHA256SUMS
+  shasum -a 256 "${checksum_files[@]}" release-manifest.json >SHA256SUMS
 )
 
 echo "$manifest"

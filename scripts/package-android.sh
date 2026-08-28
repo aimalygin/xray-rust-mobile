@@ -5,21 +5,36 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/_common.sh"
 
+include_maven=1
+if [[ "${1:-}" == "--standalone-only" ]]; then
+  include_maven=0
+  shift
+fi
+[[ "$#" -le 1 ]] || die "usage: $0 [--standalone-only] [aar]"
+
 aar="${1:-$MOBILE_ROOT/android/xraymobile/build/outputs/aar/xraymobile-release.aar}"
 dist_dir="${DIST_DIR:-$MOBILE_ROOT/dist/v$XRAY_MOBILE_VERSION}"
 [[ -f "$aar" ]] || die "Android AAR not found: $aar"
-require_command zip
-require_command git
 require_command shasum
 mkdir -p "$dist_dir"
 dist_dir="$(cd "$dist_dir" && pwd -P)"
 
 output="$dist_dir/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
 cp "$aar" "$output"
+maven_output="$dist_dir/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+if [[ "$include_maven" -eq 0 ]]; then
+  rm -f "$maven_output"
+  printf '%s  %s\n' "$(sha256_file "$output")" "$(basename "$output")" \
+    >"$dist_dir/SHA256SUMS.android"
+  echo "$output"
+  exit 0
+fi
+
+require_command zip
+require_command git
 maven_repository="$MOBILE_ROOT/android/build/maven-repository"
 [[ -d "$maven_repository" ]] ||
   die "staged Maven repository not found: $maven_repository"
-maven_output="$dist_dir/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
 rm -f "$maven_output"
 
 group="$(awk -F= '$1 == "GROUP" {print $2}' "$MOBILE_ROOT/android/gradle.properties")"

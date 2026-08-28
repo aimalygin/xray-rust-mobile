@@ -21,47 +21,142 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-stable-tag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      XRAY_RELEASE_TAG: ${{ inputs.tag }}
+    outputs:
+      verified_tag_object: ${{ steps.release.outputs.verified_tag_object }}
+      verified_commit: ${{ steps.release.outputs.verified_commit }}
+    steps:
+      - name: Check out exact release tag without secrets
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate stable release before environment approval
+        run: |
+          [[ "$XRAY_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          scripts/release-channel.sh --require-stable "$XRAY_RELEASE_TAG"
+          scripts/check-release.sh "$XRAY_RELEASE_TAG"
+
+      - name: Record verified main-branch release commit
+        id: release
+        run: |
+          tag_ref="refs/tags/$XRAY_RELEASE_TAG"
+          [[ "$(git cat-file -t "$tag_ref")" == "tag" ]]
+          verified_tag_object="$(git rev-parse "$tag_ref^{tag}")"
+          tag_commit="$(git rev-parse "$tag_ref^{commit}")"
+          [[ "$tag_commit" == "$(git rev-parse HEAD)" ]]
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+          verified_commit="$(git rev-parse HEAD)"
+          [[ "$verified_tag_object" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$verified_commit" =~ ^[0-9a-f]{40}$ ]]
+          echo "verified_tag_object=$verified_tag_object" >>"$GITHUB_OUTPUT"
+          echo "verified_commit=$verified_commit" >>"$GITHUB_OUTPUT"
+
   publish:
+    needs: validate-stable-tag
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: maven-central
     env:
-      GH_TOKEN: ${{ github.token }}
       XRAY_RELEASE_TAG: ${{ inputs.tag }}
+      VERIFIED_TAG_OBJECT: ${{ needs.validate-stable-tag.outputs.verified_tag_object }}
+      VERIFIED_COMMIT: ${{ needs.validate-stable-tag.outputs.verified_commit }}
       PUBLISHING_TYPE: ${{ inputs.automatic && 'AUTOMATIC' || 'USER_MANAGED' }}
-      MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-      MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-      MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
-      MAVEN_SIGNING_PASSWORD: ${{ secrets.MAVEN_SIGNING_PASSWORD }}
     steps:
-      - name: Check out exact release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.validate-stable-tag.outputs.verified_commit }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify release identity and required credentials
+      - name: Verify release identity against preflight
         run: |
+          [[ "$VERIFIED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$VERIFIED_COMMIT" ]]
+          [[ "$XRAY_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          scripts/release-channel.sh --require-stable "$XRAY_RELEASE_TAG"
           scripts/check-release.sh "$XRAY_RELEASE_TAG"
           source release/version.env
           [[ "$XRAY_RELEASE_TAG" == "v$XRAY_MOBILE_VERSION" ]]
-          [[ -n "$MAVEN_CENTRAL_USERNAME" ]]
-          [[ -n "$MAVEN_CENTRAL_PASSWORD" ]]
-          [[ -n "$MAVEN_SIGNING_KEY" ]]
 
       - name: Download immutable Maven release bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           source release/version.env
+          archive_name="xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+          release_json="$(
+            gh api \
+              "repos/$GITHUB_REPOSITORY/releases/tags/$XRAY_RELEASE_TAG"
+          )"
+          jq -e \
+            '.draft == false and .prerelease == false and .immutable == true' \
+            <<<"$release_json" >/dev/null
+
+          asset_digest() {
+            local name="$1"
+            local matches digest
+            matches="$(
+              jq -r --arg name "$name" \
+                '[.assets[] | select(.name == $name)] | length' \
+                <<<"$release_json"
+            )"
+            [[ "$matches" == "1" ]]
+            digest="$(
+              jq -r --arg name "$name" \
+                '.assets[] | select(.name == $name) | .digest' \
+                <<<"$release_json"
+            )"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s\n' "${digest#sha256:}"
+          }
+
           mkdir -p incoming
-          gh release download "$XRAY_RELEASE_TAG" \
-            --pattern "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" \
-            --dir incoming
+          for name in "$archive_name" release-manifest.json SHA256SUMS; do
+            expected_digest="$(asset_digest "$name")"
+            gh release download "$XRAY_RELEASE_TAG" \
+              --pattern "$name" \
+              --dir incoming
+            actual_digest="$(sha256sum "incoming/$name" | awk '{print $1}')"
+            [[ "$actual_digest" == "$expected_digest" ]]
+          done
+
+          verify_checksum_entry() {
+            local name="$1"
+            local expected actual count
+            count="$(awk -v name="$name" '$2 == name { count++ } END { print count + 0 }' incoming/SHA256SUMS)"
+            [[ "$count" == "1" ]]
+            expected="$(awk -v name="$name" '$2 == name { print $1 }' incoming/SHA256SUMS)"
+            [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
+            actual="$(sha256sum "incoming/$name" | awk '{print $1}')"
+            [[ "$actual" == "$expected" ]]
+          }
+          verify_checksum_entry "$archive_name"
+          verify_checksum_entry release-manifest.json
+
+          archive_sha="$(sha256sum "incoming/$archive_name" | awk '{print $1}')"
+          jq -e \
+            --arg version "$XRAY_MOBILE_VERSION" \
+            --arg archive "$archive_name" \
+            --arg archive_sha "$archive_sha" \
+            '.mobileVersion == $version and .artifacts[$archive] == $archive_sha' \
+            incoming/release-manifest.json >/dev/null
 
       - name: Assemble and sign Central deployment bundle
         id: bundle
+        env:
+          MAVEN_SIGNING_KEY: ${{ secrets.MAVEN_SIGNING_KEY }}
+          MAVEN_SIGNING_PASSWORD: ${{ secrets.MAVEN_SIGNING_PASSWORD }}
         run: |
           set -euo pipefail
+          [[ -n "$MAVEN_SIGNING_KEY" ]]
           source release/version.env
           group="$(awk -F= '$1 == "GROUP" {print $2}' android/gradle.properties)"
           artifact="$(awk -F= '$1 == "POM_ARTIFACT_ID" {print $2}' android/gradle.properties)"
@@ -145,7 +240,16 @@ jobs:
         env:
           BUNDLE_PATH: ${{ steps.bundle.outputs.path }}
           DEPLOYMENT_NAME: ${{ steps.bundle.outputs.name }}
+          GH_TOKEN: ${{ github.token }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
+          scripts/verify-github-release-tag.sh \
+            "$XRAY_RELEASE_TAG" \
+            "$VERIFIED_TAG_OBJECT" \
+            "$VERIFIED_COMMIT"
+          [[ -n "$MAVEN_CENTRAL_USERNAME" ]]
+          [[ -n "$MAVEN_CENTRAL_PASSWORD" ]]
           auth="$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)"
           deployment_id="$(
             curl --fail --silent --show-error \
@@ -160,6 +264,8 @@ jobs:
       - name: Wait for validation or publication
         env:
           DEPLOYMENT_ID: ${{ steps.upload.outputs.deployment_id }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
           auth="$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)"
           for attempt in {1..60}; do

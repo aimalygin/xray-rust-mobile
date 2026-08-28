@@ -13,8 +13,7 @@ fi
 
 tag="${1:-}"
 [[ "$#" -le 1 ]] || die "usage: $0 [--prepare] [v$XRAY_MOBILE_VERSION]"
-[[ "$XRAY_MOBILE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] ||
-  die "invalid mobile SemVer: $XRAY_MOBILE_VERSION"
+release_channel="$("$SCRIPT_DIR/release-channel.sh" "$XRAY_MOBILE_VERSION")"
 if [[ -n "$tag" && "$tag" != "v$XRAY_MOBILE_VERSION" ]]; then
   die "release tag $tag does not match v$XRAY_MOBILE_VERSION"
 fi
@@ -131,9 +130,11 @@ for script in "$MOBILE_ROOT"/scripts/*.sh; do
   fi
 done
 
+"$SCRIPT_DIR/check-release-workflows.sh"
+
 if [[ "${SKIP_CORE_VERIFY:-0}" != "1" ]]; then
   "$SCRIPT_DIR/verify-core.sh"
   "$SCRIPT_DIR/verify-source-sync.sh"
 fi
 
-echo "verified mobile release metadata for v$XRAY_MOBILE_VERSION"
+echo "verified $release_channel mobile release metadata for v$XRAY_MOBILE_VERSION"

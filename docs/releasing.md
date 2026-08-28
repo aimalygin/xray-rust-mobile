@@ -1,16 +1,24 @@
 # Release process
 
 Mobile releases are two-phase because a remote SwiftPM binary target must
-contain the SHA-256 checksum of the exact ZIP stored at its tagged URL.
+contain the SHA-256 checksum of the exact ZIP stored at its tagged URL. Release
+versions are either stable `MAJOR.MINOR.PATCH` or release candidates
+`MAJOR.MINOR.PATCH-rc.N`, where `N` is a positive canonical integer. Build
+metadata and other prerelease identifiers are not accepted.
+
+An RC is deliberately a GitHub-only prerelease. It publishes the verified
+XCFramework, standalone AAR, checksums, notices, and provenance manifest, but
+never a Maven repository archive or remote Maven coordinate.
 
 ## Repository setup
 
 Configure GitHub Actions to allow this repository to write packages and to
-create pull requests. The release workflow publishes the five unsigned Gradle
-artifacts to GitHub Packages as an authenticated mirror. The separate Maven
-Central workflow signs the immutable release bundle and is the public Android
-distribution path. Enable immutable GitHub releases before publishing a public
-version. Apple release artifacts must be built with the
+create pull requests. For stable versions, the release workflow publishes the
+five unsigned Gradle artifacts to GitHub Packages as an authenticated mirror.
+The separate Maven Central workflow signs the immutable stable release bundle
+and is the public Android distribution path. Neither path accepts RC versions.
+Enable immutable GitHub releases before publishing a public version. Apple
+release artifacts must be built with the
 Xcode version locked in `release/toolchains.env`; using another selected Xcode
 is allowed only for local non-release builds and cannot produce the locked
 release.
@@ -37,7 +45,9 @@ existing stable release.
    Publish the corresponding primary public key to a Central-supported key
    server such as `keyserver.ubuntu.com`; do not sign with a signing subkey.
 4. Protect the environment with required reviewer approval. Dispatch
-   **Publish Maven Central** with an existing stable tag. Leave `automatic`
+   **Publish Maven Central** with an existing stable tag. A secret-free
+   preflight rejects RC and malformed tags before the protected environment is
+   entered. Leave `automatic`
    disabled for the first publication, inspect the validated deployment in the
    Portal, and publish it there. Later releases may use automatic publication.
 
@@ -49,7 +59,9 @@ version that has already reached `PUBLISHED`.
 
 ## Prepare
 
-1. Update `release/version.env`, `Package.swift`, Android `VERSION_NAME`, the
+1. Choose either a stable `MAJOR.MINOR.PATCH` or an RC
+   `MAJOR.MINOR.PATCH-rc.N`. Update `release/version.env`, `Package.swift`,
+   Android `VERSION_NAME`, the
    unprepared artifact name in `release/artifacts.env`, the core lock if needed, adapter
    snapshots, and `CHANGELOG.md` on `main`.
 2. For a version whose Apple archive is not prepared yet, set both the
@@ -75,7 +87,8 @@ or replace an asset under an existing release URL.
 Create and push an annotated tag only after the generated lock PR is merged:
 
 ~~~sh
-version=0.3.0
+source release/version.env
+version="$XRAY_MOBILE_VERSION"
 git tag -a "v${version}" -m "xray-rust-mobile v${version}"
 git push origin "v${version}"
 ~~~
@@ -89,23 +102,36 @@ The tag workflow:
   checksum to match the prepared lock;
 - builds/tests the release AAR, checks JNI dependencies and 16 KiB alignment,
   and compiles a minified application consumer from the staged Maven module;
-- creates or resumes a draft GitHub release, uploads all binary assets and
-  provenance metadata, and downloads them again for byte-for-byte comparison;
-- publishes the Maven coordinate only after the draft assets are complete,
-  detecting absent, complete, or partially published retry states;
-- verifies the remote Maven AAR, POM, module metadata, sources JAR, and Javadoc
-  JAR, then
-  publishes the draft as the latest stable GitHub release.
+- creates or resumes a channel-matching draft GitHub release, uploads the
+  expected asset set and provenance metadata, and downloads every asset again
+  for byte-for-byte comparison.
 
-If GitHub Packages contains only part of the five-file Maven coordinate, the
-workflow stops deliberately: publishing over a partial version is unsafe.
-Delete that incomplete package version in the repository's Packages settings,
-confirm that all five version URLs return 404, and rerun the tag workflow. Do
-not delete or replace a complete coordinate.
+For a stable version, it also attaches the deterministic Maven repository
+archive, publishes the GitHub Packages coordinate only after the draft assets
+are complete, detects absent/complete/partial retry states, verifies the remote
+AAR, POM, module metadata, sources JAR, and Javadoc JAR, and finally publishes
+the draft as the latest stable GitHub release.
+
+For an RC, Gradle still stages the Maven layout locally and a minified consumer
+resolves it as a smoke test. Packaging then switches to standalone-only mode:
+the public GitHub prerelease contains exactly the XCFramework ZIP, standalone
+AAR, the raw root `LICENSE`, `THIRD_PARTY_NOTICES.md`,
+`release-manifest.json`, and `SHA256SUMS`. The manifest records checksums for
+both license files and `remoteMavenPublication: false`; the GitHub Packages job
+is skipped, no Maven ZIP is uploaded, and finalization keeps the release marked
+as a non-latest prerelease. The Maven Central workflow independently rejects
+RC tags before requesting environment approval or secrets.
+
+For a stable release, if GitHub Packages contains only part of the five-file
+Maven coordinate, the workflow stops deliberately: publishing over a partial
+version is unsafe. Delete that incomplete package version in the repository's
+Packages settings, confirm that all five version URLs return 404, and rerun the
+tag workflow. Do not delete or replace a complete coordinate.
 
 After publication, resolve the exact SPM version from a clean sample app and
 the exact Maven coordinate from a clean external Gradle consumer and record the
 result. With release immutability enabled, a published release cannot be
 changed; fixes use a new SDK version. Releases published by the earlier
-workflow remain immutable prereleases, while new versions are published as
-stable releases regardless of whether their semantic version is below 1.0.
+workflow remain immutable prereleases. New `MAJOR.MINOR.PATCH` versions are
+published as stable releases regardless of whether their semantic version is
+below 1.0; `MAJOR.MINOR.PATCH-rc.N` versions remain prereleases.

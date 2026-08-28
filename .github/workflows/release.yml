@@ -29,6 +29,9 @@ jobs:
     outputs:
       apple_artifact_name: ${{ steps.release.outputs.apple_artifact_name }}
       apple_artifact_run_id: ${{ steps.release.outputs.apple_artifact_run_id }}
+      release_channel: ${{ steps.release.outputs.release_channel }}
+      verified_tag_object: ${{ steps.release.outputs.verified_tag_object }}
+      verified_commit: ${{ steps.release.outputs.verified_commit }}
     steps:
       - name: Check out release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -41,10 +44,19 @@ jobs:
         id: release
         run: |
           scripts/check-release.sh "$XRAY_RELEASE_TAG"
+          release_channel="$(scripts/release-channel.sh "$XRAY_RELEASE_TAG")"
+          tag_ref="refs/tags/$XRAY_RELEASE_TAG"
+          verified_tag_object="$(git rev-parse "$tag_ref^{tag}")"
+          verified_commit="$(git rev-parse "$tag_ref^{commit}")"
+          [[ "$verified_tag_object" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$verified_commit" == "$(git rev-parse HEAD)" ]]
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
           source release/artifacts.env
           echo "apple_artifact_name=$APPLE_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
           echo "apple_artifact_run_id=$APPLE_ARTIFACT_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "release_channel=$release_channel" >> "$GITHUB_OUTPUT"
+          echo "verified_tag_object=$verified_tag_object" >> "$GITHUB_OUTPUT"
+          echo "verified_commit=$verified_commit" >> "$GITHUB_OUTPUT"
 
   apple-source:
     needs: metadata
@@ -55,10 +67,10 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
-      - name: Check out release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ env.XRAY_RELEASE_TAG }}
+          ref: ${{ needs.metadata.outputs.verified_commit }}
           persist-credentials: false
 
       - name: Install locked Rust toolchain
@@ -90,10 +102,10 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
-      - name: Check out release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ env.XRAY_RELEASE_TAG }}
+          ref: ${{ needs.metadata.outputs.verified_commit }}
           persist-credentials: false
 
       - name: Download locked SwiftPM archive
@@ -129,10 +141,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ env.XRAY_RELEASE_TAG }}
+          ref: ${{ needs.metadata.outputs.verified_commit }}
           persist-credentials: false
 
       - name: Select JDK 17
@@ -167,9 +179,17 @@ jobs:
         run: scripts/check-android-consumer.sh
 
       - name: Package Android release files
-        run: scripts/package-android.sh
+        env:
+          RELEASE_CHANNEL: ${{ needs.metadata.outputs.release_channel }}
+        run: |
+          if [[ "$RELEASE_CHANNEL" == "prerelease" ]]; then
+            scripts/package-android.sh --standalone-only
+          else
+            scripts/package-android.sh
+          fi
 
       - name: Archive exact native inputs for publication retry
+        if: needs.metadata.outputs.release_channel == 'stable'
         run: |
           tar -czf .build/android-native.tar.gz \
             -C .build/android/native .
@@ -185,6 +205,7 @@ jobs:
           overwrite: true
 
       - name: Preserve exact Android native inputs
+        if: needs.metadata.outputs.release_channel == 'stable'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-android-native
@@ -194,17 +215,17 @@ jobs:
           overwrite: true
 
   draft-release:
-    needs: [apple-source, apple-asset, android-build]
+    needs: [metadata, apple-source, apple-asset, android-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       actions: read
       contents: write
     steps:
-      - name: Check out release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ env.XRAY_RELEASE_TAG }}
+          ref: ${{ needs.metadata.outputs.verified_commit }}
           persist-credentials: false
 
       - name: Download verified Apple asset
@@ -220,34 +241,56 @@ jobs:
           path: incoming/android
 
       - name: Assemble release metadata
+        env:
+          RELEASE_CHANNEL: ${{ needs.metadata.outputs.release_channel }}
         run: |
           source release/version.env
           dist="dist/v$XRAY_MOBILE_VERSION"
           mkdir -p "$dist"
           apple="$(find incoming/apple -name XrayRust.xcframework.zip -type f -print -quit)"
           android="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION.aar" -type f -print -quit)"
-          maven="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" -type f -print -quit)"
           test -n "$apple"
           test -n "$android"
-          test -n "$maven"
           cp "$apple" "$dist/"
           cp "$android" "$dist/"
-          cp "$maven" "$dist/"
-          scripts/write-release-manifest.sh "$dist"
+          if [[ "$RELEASE_CHANNEL" == "prerelease" ]]; then
+            test -z "$(find incoming/android -name '*-maven.zip' -type f -print -quit)"
+            cp LICENSE "$dist/"
+            cp THIRD_PARTY_NOTICES.md "$dist/"
+          else
+            maven="$(find incoming/android -name "xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip" -type f -print -quit)"
+            test -n "$maven"
+            cp "$maven" "$dist/"
+          fi
+          scripts/write-release-manifest.sh "$dist" "$RELEASE_CHANNEL"
 
       - name: Create or resume draft and verify uploaded assets
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ needs.metadata.outputs.release_channel }}
+          VERIFIED_TAG_OBJECT: ${{ needs.metadata.outputs.verified_tag_object }}
+          VERIFIED_COMMIT: ${{ needs.metadata.outputs.verified_commit }}
         run: |
           source release/version.env
           dist="dist/v$XRAY_MOBILE_VERSION"
-          assets=(
-            "$dist/XrayRust.xcframework.zip"
-            "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
-            "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
-            "$dist/release-manifest.json"
-            "$dist/SHA256SUMS"
-          )
+          if [[ "$RELEASE_CHANNEL" == "prerelease" ]]; then
+            assets=(
+              "$dist/XrayRust.xcframework.zip"
+              "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
+              "$dist/LICENSE"
+              "$dist/THIRD_PARTY_NOTICES.md"
+              "$dist/release-manifest.json"
+              "$dist/SHA256SUMS"
+            )
+          else
+            assets=(
+              "$dist/XrayRust.xcframework.zip"
+              "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION.aar"
+              "$dist/xray-rust-mobile-$XRAY_MOBILE_VERSION-maven.zip"
+              "$dist/release-manifest.json"
+              "$dist/SHA256SUMS"
+            )
+          fi
 
           state="$(
             gh release view "$XRAY_RELEASE_TAG" \
@@ -255,29 +298,61 @@ jobs:
               --jq '[.isDraft, .isPrerelease] | @tsv' \
               2>/dev/null || true
           )"
-          case "$state" in
-            "")
-              gh release create "$XRAY_RELEASE_TAG" \
-                --verify-tag \
-                --draft \
-                --generate-notes \
-                --title "xray-rust-mobile $XRAY_MOBILE_VERSION"
-              gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
-              ;;
-            $'true\tfalse'|$'true\ttrue')
-              gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
-              ;;
-            $'false\tfalse')
-              echo "release is already published; verifying immutable assets"
-              ;;
-            $'false\ttrue')
-              echo "legacy prerelease is already published; verifying immutable assets"
-              ;;
-            *)
-              echo "unexpected GitHub release state: $state" >&2
-              exit 1
-              ;;
-          esac
+          scripts/verify-github-release-tag.sh \
+            "$XRAY_RELEASE_TAG" \
+            "$VERIFIED_TAG_OBJECT" \
+            "$VERIFIED_COMMIT"
+          if [[ "$RELEASE_CHANNEL" == "prerelease" ]]; then
+            case "$state" in
+              "")
+                gh release create "$XRAY_RELEASE_TAG" \
+                  --verify-tag \
+                  --draft \
+                  --prerelease \
+                  --generate-notes \
+                  --title "xray-rust-mobile $XRAY_MOBILE_VERSION"
+                gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
+                ;;
+              $'true\ttrue')
+                gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
+                ;;
+              $'false\ttrue')
+                echo "prerelease is already published; verifying immutable assets"
+                ;;
+              $'true\tfalse'|$'false\tfalse')
+                echo "RC tag is attached to a non-prerelease GitHub release" >&2
+                exit 1
+                ;;
+              *)
+                echo "unexpected GitHub prerelease state: $state" >&2
+                exit 1
+                ;;
+            esac
+          else
+            case "$state" in
+              "")
+                gh release create "$XRAY_RELEASE_TAG" \
+                  --verify-tag \
+                  --draft \
+                  --generate-notes \
+                  --title "xray-rust-mobile $XRAY_MOBILE_VERSION"
+                gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
+                ;;
+              $'true\tfalse'|$'true\ttrue')
+                gh release upload "$XRAY_RELEASE_TAG" "${assets[@]}" --clobber
+                ;;
+              $'false\tfalse')
+                echo "release is already published; verifying immutable assets"
+                ;;
+              $'false\ttrue')
+                echo "legacy prerelease is already published; verifying immutable assets"
+                ;;
+              *)
+                echo "unexpected GitHub release state: $state" >&2
+                exit 1
+                ;;
+            esac
+          fi
 
           remote=".build/remote-release-assets"
           mkdir -p "$remote"
@@ -308,7 +383,8 @@ jobs:
           done
 
   maven-publish:
-    needs: draft-release
+    needs: [metadata, draft-release]
+    if: needs.metadata.outputs.release_channel == 'stable'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -316,10 +392,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Check out release tag
+      - name: Check out verified release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ env.XRAY_RELEASE_TAG }}
+          ref: ${{ needs.metadata.outputs.verified_commit }}
           persist-credentials: false
 
       - name: Download exact Android distribution
@@ -439,8 +515,15 @@ jobs:
       - name: Publish Maven module
         if: steps.remote.outputs.exists == 'false'
         env:
+          GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
+          VERIFIED_TAG_OBJECT: ${{ needs.metadata.outputs.verified_tag_object }}
+          VERIFIED_COMMIT: ${{ needs.metadata.outputs.verified_commit }}
         run: |
+          scripts/verify-github-release-tag.sh \
+            "$XRAY_RELEASE_TAG" \
+            "$VERIFIED_TAG_OBJECT" \
+            "$VERIFIED_COMMIT"
           XRAY_USE_PREBUILT_ARTIFACTS=1 scripts/build-android.sh \
             :xraymobile:publishReleasePublicationToGitHubPackagesRepository
 
@@ -492,37 +575,84 @@ jobs:
           done
 
   finalize-release:
-    needs: maven-publish
+    needs: [metadata, draft-release, maven-publish]
+    if: >-
+      ${{
+        always() &&
+        needs.metadata.result == 'success' &&
+        needs.draft-release.result == 'success' &&
+        (
+          (needs.metadata.outputs.release_channel == 'stable' &&
+            needs.maven-publish.result == 'success') ||
+          (needs.metadata.outputs.release_channel == 'prerelease' &&
+            needs.maven-publish.result == 'skipped')
+        )
+      }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
+      - name: Check out verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.metadata.outputs.verified_commit }}
+          persist-credentials: false
+
       - name: Publish or verify the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_CHANNEL: ${{ needs.metadata.outputs.release_channel }}
+          VERIFIED_TAG_OBJECT: ${{ needs.metadata.outputs.verified_tag_object }}
+          VERIFIED_COMMIT: ${{ needs.metadata.outputs.verified_commit }}
         run: |
           state="$(
             gh release view "$XRAY_RELEASE_TAG" \
               --json isDraft,isPrerelease \
               --jq '[.isDraft, .isPrerelease] | @tsv'
           )"
-          case "$state" in
-            $'true\tfalse'|$'true\ttrue')
-              gh release edit "$XRAY_RELEASE_TAG" \
-                --draft=false \
-                --prerelease=false \
-                --latest
-              ;;
-            $'false\tfalse')
-              echo "release is already finalized"
-              ;;
-            $'false\ttrue')
-              echo "legacy immutable prerelease is already finalized"
-              ;;
-            *)
-              echo "unexpected GitHub release state: $state" >&2
-              exit 1
-              ;;
-          esac
+          scripts/verify-github-release-tag.sh \
+            "$XRAY_RELEASE_TAG" \
+            "$VERIFIED_TAG_OBJECT" \
+            "$VERIFIED_COMMIT"
+          if [[ "$RELEASE_CHANNEL" == "prerelease" ]]; then
+            case "$state" in
+              $'true\ttrue')
+                gh release edit "$XRAY_RELEASE_TAG" \
+                  --draft=false \
+                  --prerelease=true \
+                  --latest=false
+                ;;
+              $'false\ttrue')
+                echo "prerelease is already finalized"
+                ;;
+              $'true\tfalse'|$'false\tfalse')
+                echo "RC tag is attached to a non-prerelease GitHub release" >&2
+                exit 1
+                ;;
+              *)
+                echo "unexpected GitHub prerelease state: $state" >&2
+                exit 1
+                ;;
+            esac
+          else
+            case "$state" in
+              $'true\tfalse'|$'true\ttrue')
+                gh release edit "$XRAY_RELEASE_TAG" \
+                  --draft=false \
+                  --prerelease=false \
+                  --latest
+                ;;
+              $'false\tfalse')
+                echo "release is already finalized"
+                ;;
+              $'false\ttrue')
+                echo "legacy immutable prerelease is already finalized"
+                ;;
+              *)
+                echo "unexpected GitHub release state: $state" >&2
+                exit 1
+                ;;
+            esac
+          fi

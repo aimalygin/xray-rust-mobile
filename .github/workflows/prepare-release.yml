@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Mobile SDK SemVer without the v prefix
+        description: Stable MAJOR.MINOR.PATCH or RC MAJOR.MINOR.PATCH-rc.N (without v)
         required: true
         type: string
 
@@ -35,6 +35,7 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           source release/version.env
+          scripts/release-channel.sh "$REQUESTED_VERSION"
           test "$REQUESTED_VERSION" = "$XRAY_MOBILE_VERSION"
           scripts/check-release.sh --prepare
 
