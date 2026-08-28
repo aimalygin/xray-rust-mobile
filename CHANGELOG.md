@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-27
+
+- Repinned the core to [`xray-rust` v0.4.0][core-0.4.0]. Apple VLESS URL
+  imports now support XHTTP/SplitHTTP over plaintext, TLS, and REALITY,
+  including bounded decoding of the XHTTP `extra` object. Unsupported
+  non-empty certificate-pin/ECH parameters fail closed; the removed
+  `scMaxConcurrentPosts` field remains import-compatible but is ignored, and
+  XHTTP profiles do not acquire the raw-only Vision flow during migration.
+- Reduced memory pressure for plaintext HTTP/1.1 XHTTP packet-up traffic by
+  growing request bodies in 8 KiB steps and avoiding an extra payload clone.
+  The core release includes an exact-profile RSS benchmark for this path.
+- Updated `h2` to 0.4.16 for its upstream RustSec fix and replaced the yanked
+  transitive `chacha20` 0.10.1 lock entry with 0.10.2.
+
+[core-0.4.0]: https://github.com/aimalygin/xray-rust/releases/tag/v0.4.0
+
 ## 0.3.2 - 2026-08-16
 
 - Repinned the core to [`xray-rust` v0.3.2][core-0.3.2]. Apple VLESS URL

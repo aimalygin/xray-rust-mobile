@@ -13,7 +13,7 @@ body:
     id: sdk_version
     attributes:
       label: SDK version
-      placeholder: v0.3.2
+      placeholder: v0.4.0
     validations:
       required: true
   - type: dropdown

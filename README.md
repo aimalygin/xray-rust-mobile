@@ -33,6 +33,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.4.0` | `v0.4.0` | `e1199b2176ae834259e8a2b21db468bb9db5fb17` | `1` |
 | `0.3.2` | `v0.3.2` | `850813037cd5c018348ec08b44b0b926414e17e8` | `1` |
 | `0.3.1` | `v0.3.1` | `9dba6c222ce24d347fc97fbedfedadaeb16a512c` | `1` |
 | `0.3.0` | `v0.3.0` | `774e08d0a22a2ff30a2ade38b9d616efe43661e7` | `1` |
@@ -59,7 +60,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.3.2"
+        exact: "0.4.0"
     ),
 ]
 ~~~
@@ -78,7 +79,8 @@ Available products:
 - `XrayMobileAdapter` — lifecycle, packet I/O, direct `utun` fd support,
   statistics, diagnostic events, and the `NEPacketTunnelFlow` pump;
 - `XrayAppleShared` — profiles, Keychain-backed config storage, VLESS URL
-  import, logging, and DNS preflight;
+  import (including XHTTP over plaintext, TLS, and REALITY), logging, and DNS
+  preflight;
 - `XrayAppleTunnel` — a ready-to-subclass `NEPacketTunnelProvider`.
 
 Minimum supported versions are iOS 15, tvOS 17, and macOS 11. The binary
@@ -222,12 +224,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.3.2")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.4.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.3.2).
+available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.4.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
