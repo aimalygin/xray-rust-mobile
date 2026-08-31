@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.4.1-rc.4 - 2026-08-31
+
+- Repinned the SDK to the source-only [`xray-rust` v0.4.1-rc.4][core-0.4.1-rc.4]
+  prerelease. It fixes sustained XHTTP/2 `stream-up` uploads, adds safe
+  pre-commit HTTP/2 GOAWAY retries, handles post-body HTTP/3 `H3_NO_ERROR`
+  resets correctly, and compiles routing IP ranges with Xray-compatible
+  address-family semantics.
+- The core candidate is bound by exact annotated-tag, commit, tree, lockfile,
+  FFI-header, and module-map identities and passed the expanded RC
+  interoperability, fuzz, platform, supply-chain, and benchmark-evidence
+  gates.
+- This mobile RC is distributed only as a GitHub prerelease. Android is
+  available as a standalone AAR asset for direct evaluation; no Maven archive
+  or coordinate is published to GitHub Packages or Maven Central.
+
+[core-0.4.1-rc.4]: https://github.com/aimalygin/xray-rust/releases/tag/v0.4.1-rc.4
+
 ## 0.4.1-rc.3 - 2026-08-28
 
 - Repinned the SDK to the source-only [`xray-rust` v0.4.1-rc.3][core-0.4.1-rc.3]

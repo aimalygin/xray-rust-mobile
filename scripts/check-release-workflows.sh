@@ -84,6 +84,7 @@ if "$SCRIPT_DIR/release-channel.sh" --require-stable v0.4.1-rc.1 >/dev/null 2>&1
 fi
 
 release_workflow="$MOBILE_ROOT/.github/workflows/release.yml"
+prepare_workflow="$MOBILE_ROOT/.github/workflows/prepare-release.yml"
 central_workflow="$MOBILE_ROOT/.github/workflows/publish-maven-central.yml"
 manifest_script="$MOBILE_ROOT/scripts/write-release-manifest.sh"
 prepare_script="$MOBILE_ROOT/scripts/prepare-release.sh"
@@ -170,6 +171,24 @@ require_block_order "$finalize_job" \
   'scripts/verify-github-release-tag.sh' \
   'gh release edit "$XRAY_RELEASE_TAG"' \
   "release finalization is not preceded by live tag validation"
+
+checksum_pr_job="$(extract_job "$prepare_workflow" checksum-pr)"
+require_block_order "$checksum_pr_job" \
+  'git push origin "$branch"' \
+  'gh pr create' \
+  "checksum PR creation is attempted before its recovery branch is pushed"
+require_block_text "$checksum_pr_job" \
+  'Allow GitHub Actions to create and approve pull requests' \
+  "checksum PR failure does not name the required repository setting"
+require_block_text "$checksum_pr_job" \
+  'Branch $branch was pushed.' \
+  "checksum PR failure does not print the pushed recovery branch"
+require_block_text "$checksum_pr_job" \
+  'open a pull request from $branch to $GITHUB_REF_NAME manually' \
+  "checksum PR failure does not provide the manual recovery path"
+require_block_text "$checksum_pr_job" \
+  'exit 1' \
+  "checksum PR failure is not fatal after printing recovery guidance"
 
 require_text "$tag_verifier" \
   '"repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"' \

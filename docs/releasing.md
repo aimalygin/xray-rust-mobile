@@ -27,6 +27,14 @@ The prepare workflow artifact is retained for 30 days. The tag workflow only
 publishes the exact locked Apple archive after rechecking its checksum and
 structure; a separate job rebuilds the sources and tests the Apple products.
 
+Enable **Settings → Actions → General → Workflow permissions →
+Allow GitHub Actions to create and approve pull requests** for automatic
+checksum-PR creation. If that setting is intentionally disabled, the Prepare
+workflow fails after pushing
+`release/v${version}-artifact-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`. Open
+that branch against `main` manually, verify that only `Package.swift` and
+`release/artifacts.env` changed, and merge it before tagging.
+
 ## Maven Central setup
 
 GitHub Packages remains an authenticated mirror produced by the release

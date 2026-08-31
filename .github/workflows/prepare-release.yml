@@ -124,8 +124,13 @@ jobs:
           git commit -m "chore(release): lock iOS artifact for v$VERSION"
           gh auth setup-git
           git push origin "$branch"
-          gh pr create \
+          if ! pr_url="$(gh pr create \
             --base "$GITHUB_REF_NAME" \
             --head "$branch" \
             --title "chore(release): lock iOS artifact for v$VERSION" \
-            --body "Locks the exact SwiftPM ZIP from workflow run $GITHUB_RUN_ID. Merge this before creating tag v$VERSION."
+            --body "Locks the exact SwiftPM ZIP from workflow run $GITHUB_RUN_ID. Merge this before creating tag v$VERSION." 2>&1)"; then
+            echo "::error title=Checksum pull request was not created::Branch $branch was pushed. Enable Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests, or open a pull request from $branch to $GITHUB_REF_NAME manually."
+            printf '%s\n' "$pr_url" >&2
+            exit 1
+          fi
+          printf 'Checksum pull request: %s\n' "$pr_url"
