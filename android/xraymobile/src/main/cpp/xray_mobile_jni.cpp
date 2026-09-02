@@ -14,6 +14,14 @@
 namespace {
 
 constexpr uint32_t kExpectedFfiMajorVersion = 1;
+constexpr uint32_t kMinimumFfiMinorVersion = 1;
+constexpr jint kTunDiagnosticTcpSlowFlow = 1;
+constexpr jint kTunDiagnosticTcpFlowSummary = 2;
+constexpr jint kTunDiagnosticTcpRemoteWriteSlow = 3;
+constexpr jint kTunDiagnosticTcpOpenError = 4;
+constexpr jint kTunDiagnosticUdpSlowFlow = 5;
+constexpr jint kTunDiagnosticUdpResponseGap = 6;
+constexpr jint kTunDiagnosticUdpQuicBlocked = 7;
 
 struct AndroidSocketProtector {
   JavaVM *vm = nullptr;
@@ -60,17 +68,25 @@ void throw_illegal_argument(JNIEnv *env, const char *message) {
 }
 
 bool ensure_supported_ffi_abi(JNIEnv *env) {
-  const uint32_t actual = xray_ffi_version_major();
-  if (actual == kExpectedFfiMajorVersion) {
+  const uint32_t actual_major = xray_ffi_version_major();
+  const uint32_t actual_minor = xray_ffi_version_minor();
+  if (actual_major == kExpectedFfiMajorVersion &&
+      actual_minor >= kMinimumFfiMinorVersion) {
     return true;
   }
 
   jclass exception_class = env->FindClass("java/lang/IllegalStateException");
   if (exception_class != nullptr) {
-    const std::string message =
-        "incompatible xray FFI ABI major: expected " +
-        std::to_string(kExpectedFfiMajorVersion) + ", got " +
-        std::to_string(actual);
+    std::string message;
+    if (actual_major != kExpectedFfiMajorVersion) {
+      message = "incompatible xray FFI ABI major: expected " +
+                std::to_string(kExpectedFfiMajorVersion) + ", got " +
+                std::to_string(actual_major);
+    } else {
+      message = "incompatible xray FFI ABI minor: require at least " +
+                std::to_string(kMinimumFfiMinorVersion) + ", got " +
+                std::to_string(actual_minor);
+    }
     env->ThrowNew(exception_class, message.c_str());
   }
   return false;
@@ -240,6 +256,98 @@ bool check_status(JNIEnv *env, XrayStatus status, XrayError *error) {
   return false;
 }
 
+using SnapshotJsonFunction = XrayStatus (*)(
+    const XrayCoreHandle *,
+    char *,
+    size_t,
+    size_t *,
+    XrayError **);
+
+jstring snapshot_json(
+    JNIEnv *env,
+    NativeCore *native,
+    SnapshotJsonFunction snapshot,
+    const char *invalid_length_message) {
+  if (native == nullptr || native->core == nullptr) {
+    return nullptr;
+  }
+
+  size_t required = 0;
+  XrayError *error = nullptr;
+  XrayStatus status =
+      snapshot(native->core, nullptr, 0, &required, &error);
+  if (!check_status(env, status, error)) {
+    return nullptr;
+  }
+
+  std::vector<char> buffer(required + 1, '\0');
+  size_t written = 0;
+  status = snapshot(
+      native->core,
+      buffer.data(),
+      buffer.size(),
+      &written,
+      &error);
+  if (!check_status(env, status, error)) {
+    return nullptr;
+  }
+  if (written > required) {
+    throw_illegal_argument(env, invalid_length_message);
+    return nullptr;
+  }
+  return utf8_to_jstring(env, std::string_view(buffer.data(), written));
+}
+
+jobject new_tun_diagnostic_event(
+    JNIEnv *env,
+    jint kind,
+    jint subtype,
+    std::string_view target,
+    const std::string_view *outbound_tag,
+    const std::string_view *event_error,
+    const std::vector<jlong> &values) {
+  jclass event_class =
+      env->FindClass("org/xrayrust/mobile/NativeTunDiagnosticEvent");
+  if (event_class == nullptr) {
+    return nullptr;
+  }
+  jmethodID constructor = env->GetMethodID(
+      event_class,
+      "<init>",
+      "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;[J)V");
+  if (constructor == nullptr) {
+    return nullptr;
+  }
+
+  jstring target_string = utf8_to_jstring(env, target);
+  jstring outbound_tag_string = outbound_tag == nullptr
+      ? nullptr
+      : utf8_to_jstring(env, *outbound_tag);
+  jstring error_string = event_error == nullptr
+      ? nullptr
+      : utf8_to_jstring(env, *event_error);
+  jlongArray value_array = env->NewLongArray(static_cast<jsize>(values.size()));
+  if (target_string == nullptr || value_array == nullptr) {
+    return nullptr;
+  }
+  if (!values.empty()) {
+    env->SetLongArrayRegion(
+        value_array,
+        0,
+        static_cast<jsize>(values.size()),
+        values.data());
+  }
+  return env->NewObject(
+      event_class,
+      constructor,
+      kind,
+      subtype,
+      target_string,
+      outbound_tag_string,
+      error_string,
+      value_array);
+}
+
 int32_t protect_socket(int32_t fd, void *user_data) {
   auto *protector = reinterpret_cast<AndroidSocketProtector *>(user_data);
   if (protector == nullptr || protector->vm == nullptr || protector->object == nullptr) {
@@ -251,7 +359,11 @@ int32_t protect_socket(int32_t fd, void *user_data) {
   jint env_status =
       protector->vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6);
   if (env_status == JNI_EDETACHED) {
+#if defined(__ANDROID__)
     if (protector->vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
+#else
+    if (protector->vm->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != JNI_OK) {
+#endif
       return 0;
     }
     attached = true;
@@ -274,6 +386,21 @@ int32_t protect_socket(int32_t fd, void *user_data) {
 }
 
 } // namespace
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeFfiVersionMajor(JNIEnv *, jclass) {
+  return static_cast<jint>(xray_ffi_version_major());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeFfiVersionMinor(JNIEnv *, jclass) {
+  return static_cast<jint>(xray_ffi_version_minor());
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeFfiCapabilities(JNIEnv *, jclass) {
+  return static_cast<jlong>(xray_ffi_capabilities());
+}
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_xrayrust_mobile_XrayCore_nativeNew(JNIEnv *env, jclass) {
@@ -355,6 +482,342 @@ Java_org_xrayrust_mobile_XrayCore_nativeConfigWarnings(
     return nullptr;
   }
   return utf8_to_jstring(env, std::string_view(buffer.data(), written));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeSetOutboundSelectorOverride(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jstring group_tag,
+    jstring outbound_tag) {
+  NativeCore *native = core_from_handle(handle);
+  if (native == nullptr || native->core == nullptr) {
+    return;
+  }
+
+  std::string utf8_group_tag;
+  std::string utf8_outbound_tag;
+  if (!jstring_to_utf8(env, group_tag, &utf8_group_tag) ||
+      !jstring_to_utf8(env, outbound_tag, &utf8_outbound_tag)) {
+    return;
+  }
+
+  XrayError *error = nullptr;
+  XrayStatus status = xray_core_set_outbound_selector_override(
+      native->core,
+      utf8_group_tag.c_str(),
+      utf8_outbound_tag.c_str(),
+      &error);
+  check_status(env, status, error);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeClearOutboundSelectorOverride(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jstring group_tag) {
+  NativeCore *native = core_from_handle(handle);
+  if (native == nullptr || native->core == nullptr) {
+    return;
+  }
+
+  std::string utf8_group_tag;
+  if (!jstring_to_utf8(env, group_tag, &utf8_group_tag)) {
+    return;
+  }
+
+  XrayError *error = nullptr;
+  XrayStatus status = xray_core_clear_outbound_selector_override(
+      native->core,
+      utf8_group_tag.c_str(),
+      &error);
+  check_status(env, status, error);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeReplaceRoutingPolicyJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jstring config_json) {
+  NativeCore *native = core_from_handle(handle);
+  if (native == nullptr || native->core == nullptr) {
+    return;
+  }
+
+  std::string utf8_config;
+  if (!jstring_to_utf8(env, config_json, &utf8_config)) {
+    return;
+  }
+
+  XrayError *error = nullptr;
+  XrayStatus status = xray_core_replace_routing_policy_json(
+      native->core,
+      utf8_config.c_str(),
+      &error);
+  check_status(env, status, error);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeRoutingPolicySnapshotJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle) {
+  return snapshot_json(
+      env,
+      core_from_handle(handle),
+      xray_core_routing_policy_snapshot_json,
+      "xray returned an invalid routing policy snapshot length");
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeOutboundSelectionSnapshotJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle) {
+  return snapshot_json(
+      env,
+      core_from_handle(handle),
+      xray_core_outbound_selection_snapshot_json,
+      "xray returned an invalid outbound selection snapshot length");
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeOutboundHealthSnapshotJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle) {
+  return snapshot_json(
+      env,
+      core_from_handle(handle),
+      xray_core_outbound_health_snapshot_json,
+      "xray returned an invalid outbound health snapshot length");
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeConnectionSnapshotJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle) {
+  return snapshot_json(
+      env,
+      core_from_handle(handle),
+      xray_core_connection_snapshot_json,
+      "xray returned an invalid connection snapshot length");
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeOutboundAccountingSnapshotJson(
+    JNIEnv *env,
+    jobject,
+    jlong handle) {
+  return snapshot_json(
+      env,
+      core_from_handle(handle),
+      xray_core_outbound_accounting_snapshot_json,
+      "xray returned an invalid outbound accounting snapshot length");
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativeCloseConnection(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jlong connection_id) {
+  NativeCore *native = core_from_handle(handle);
+  if (native == nullptr || native->core == nullptr) {
+    return;
+  }
+  if (connection_id <= 0) {
+    throw_illegal_argument(env, "connection id must be positive");
+    return;
+  }
+
+  XrayError *error = nullptr;
+  XrayStatus status = xray_core_close_connection(
+      native->core,
+      static_cast<uint64_t>(connection_id),
+      &error);
+  check_status(env, status, error);
+}
+
+extern "C" JNIEXPORT jobject JNICALL
+Java_org_xrayrust_mobile_XrayCore_nativePollTunDiagnosticEvent(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jint kind) {
+  NativeCore *native = core_from_handle(handle);
+  if (native == nullptr || native->core == nullptr) {
+    return nullptr;
+  }
+
+  char target[256] = {};
+  size_t target_written = 0;
+  char outbound_tag[64] = {};
+  size_t outbound_tag_written = 0;
+  char event_error[512] = {};
+  size_t event_error_written = 0;
+  jint subtype = 0;
+  bool has_outbound_tag = false;
+  bool has_event_error = false;
+  std::vector<jlong> values;
+  XrayError *error = nullptr;
+  XrayStatus status = XRAY_STATUS_INVALID_ARGUMENT;
+
+  switch (kind) {
+    case kTunDiagnosticTcpSlowFlow: {
+      XrayTcpSlowFlowEvent event = {};
+      status = xray_tun_poll_tcp_slow_flow_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          &error);
+      subtype = static_cast<jint>(event.kind);
+      values = {
+          static_cast<jlong>(event.open_duration_ms),
+          static_cast<jlong>(event.first_byte_duration_ms),
+      };
+      break;
+    }
+    case kTunDiagnosticTcpFlowSummary: {
+      XrayTcpFlowSummaryEvent event = {};
+      status = xray_tun_poll_tcp_flow_summary_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          outbound_tag,
+          sizeof(outbound_tag),
+          &outbound_tag_written,
+          &error);
+      has_outbound_tag = outbound_tag_written > 0;
+      values = {
+          static_cast<jlong>(event.closed),
+          static_cast<jlong>(event.duration_ms),
+          static_cast<jlong>(event.open_duration_ms),
+          static_cast<jlong>(event.first_byte_duration_ms),
+          static_cast<jlong>(event.remote_read_bytes),
+          static_cast<jlong>(event.ms_to_64kib),
+          static_cast<jlong>(event.ms_to_128kib),
+          static_cast<jlong>(event.ms_to_256kib),
+          static_cast<jlong>(event.ms_to_512kib),
+          static_cast<jlong>(event.ms_to_1mib),
+      };
+      break;
+    }
+    case kTunDiagnosticTcpRemoteWriteSlow: {
+      XrayTcpRemoteWriteSlowEvent event = {};
+      status = xray_tun_poll_tcp_remote_write_slow_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          outbound_tag,
+          sizeof(outbound_tag),
+          &outbound_tag_written,
+          &error);
+      has_outbound_tag = outbound_tag_written > 0;
+      values = {
+          static_cast<jlong>(event.duration_ms),
+          static_cast<jlong>(event.bytes),
+          static_cast<jlong>(event.messages),
+      };
+      break;
+    }
+    case kTunDiagnosticTcpOpenError: {
+      XrayTcpOpenErrorEvent event = {};
+      status = xray_tun_poll_tcp_open_error_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          outbound_tag,
+          sizeof(outbound_tag),
+          &outbound_tag_written,
+          event_error,
+          sizeof(event_error),
+          &event_error_written,
+          &error);
+      has_outbound_tag = outbound_tag_written > 0;
+      has_event_error = true;
+      break;
+    }
+    case kTunDiagnosticUdpSlowFlow: {
+      XrayUdpSlowFlowEvent event = {};
+      status = xray_tun_poll_udp_slow_flow_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          &error);
+      values = {
+          static_cast<jlong>(event.first_response_duration_ms),
+          static_cast<jlong>(event.written_bytes),
+          static_cast<jlong>(event.read_bytes),
+      };
+      break;
+    }
+    case kTunDiagnosticUdpResponseGap: {
+      XrayUdpResponseGapEvent event = {};
+      status = xray_tun_poll_udp_response_gap_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          &error);
+      values = {
+          static_cast<jlong>(event.response_gap_duration_ms),
+          static_cast<jlong>(event.written_bytes),
+          static_cast<jlong>(event.read_bytes),
+      };
+      break;
+    }
+    case kTunDiagnosticUdpQuicBlocked: {
+      XrayUdpQuicBlockedEvent event = {};
+      status = xray_tun_poll_udp_quic_blocked_event(
+          native->core,
+          &event,
+          target,
+          sizeof(target),
+          &target_written,
+          &error);
+      values = {static_cast<jlong>(event.bytes)};
+      break;
+    }
+    default:
+      throw_illegal_argument(env, "unknown TUN diagnostic event kind");
+      return nullptr;
+  }
+
+  if (status == XRAY_STATUS_NO_PACKET) {
+    xray_error_free(error);
+    return nullptr;
+  }
+  if (!check_status(env, status, error)) {
+    return nullptr;
+  }
+
+  const std::string_view target_view(target, target_written);
+  const std::string_view outbound_tag_view(outbound_tag, outbound_tag_written);
+  const std::string_view event_error_view(event_error, event_error_written);
+  return new_tun_diagnostic_event(
+      env,
+      kind,
+      subtype,
+      target_view,
+      has_outbound_tag ? &outbound_tag_view : nullptr,
+      has_event_error ? &event_error_view : nullptr,
+      values);
 }
 
 extern "C" JNIEXPORT void JNICALL

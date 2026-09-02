@@ -3,8 +3,8 @@
 import Foundation
 import PackageDescription
 
-let releaseVersion = "0.4.1-rc.4"
-let releaseChecksum = "14a1f3de8b32c2141105675191f3c6982cf0e714f2ead2b414a7a93f4c7c8d18"
+let releaseVersion = "0.5.0-rc.1"
+let releaseChecksum = "0000000000000000000000000000000000000000000000000000000000000000"
 let localXCFrameworkPath = "Artifacts/XrayRust.xcframework"
 let packageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localXCFrameworkURL = packageDirectory.appendingPathComponent(

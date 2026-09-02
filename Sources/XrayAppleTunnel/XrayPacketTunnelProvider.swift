@@ -423,6 +423,76 @@ private final class XrayWeakReference<Value: AnyObject>: @unchecked Sendable {
     }
 }
 
+struct XrayPacketTunnelResourceSnapshot: Equatable {
+    var residentMemoryBytes: UInt64
+    var physicalFootprintBytes: UInt64
+    var threadCount: UInt64
+
+    static func current() -> Self {
+        Self(
+            residentMemoryBytes: currentResidentMemoryBytes(),
+            physicalFootprintBytes: currentPhysicalFootprintBytes(),
+            threadCount: currentThreadCount()
+        )
+    }
+
+    private static func currentResidentMemoryBytes() -> UInt64 {
+        var info = mach_task_basic_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<mach_task_basic_info_data_t>.size / MemoryLayout<natural_t>.size
+        )
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(
+                    mach_task_self_,
+                    task_flavor_t(MACH_TASK_BASIC_INFO),
+                    $0,
+                    &count
+                )
+            }
+        }
+        guard result == KERN_SUCCESS else {
+            return 0
+        }
+        return UInt64(info.resident_size)
+    }
+
+    private static func currentPhysicalFootprintBytes() -> UInt64 {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size
+        )
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(
+                    mach_task_self_,
+                    task_flavor_t(TASK_VM_INFO),
+                    $0,
+                    &count
+                )
+            }
+        }
+        guard result == KERN_SUCCESS else {
+            return 0
+        }
+        return UInt64(info.phys_footprint)
+    }
+
+    private static func currentThreadCount() -> UInt64 {
+        var threads: thread_act_array_t?
+        var count: mach_msg_type_number_t = 0
+        guard task_threads(mach_task_self_, &threads, &count) == KERN_SUCCESS else {
+            return 0
+        }
+        if let threads {
+            let address = vm_address_t(UInt(bitPattern: threads))
+            let size = vm_size_t(Int(count) * MemoryLayout<thread_t>.stride)
+            vm_deallocate(mach_task_self_, address, size)
+        }
+        return UInt64(count)
+    }
+}
+
 @available(iOSApplicationExtension 15.0, tvOSApplicationExtension 17.0, macOSApplicationExtension 13.0, *)
 open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
     private static let defaultStartupProbeTimeoutMs: UInt64 = 5_000
@@ -453,7 +523,6 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         qos: .userInitiated
     )
     private static let dnsBootstrapWorkGate = XrayPacketTunnelWorkGate()
-
     private let debugStatsQueue = DispatchQueue(
         label: "org.xrayrust.apple.packet-tunnel.debug-stats"
     )
@@ -741,14 +810,58 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             "PacketTunnelProvider",
             "handleAppMessage bytes=\(messageData.count)"
         )
-        guard String(data: messageData, encoding: .utf8) == XrayTunnelProviderMessage.statsRequest,
-              let stats = try? lifecycle.active()?.core.stats()
+        guard let request = String(data: messageData, encoding: .utf8),
+              let runtime = lifecycle.active()
+        else {
+            XrayAppleLog.info("PacketTunnelProvider", "App message ignored or stats unavailable")
+            completionHandler?(nil)
+            return
+        }
+        let core = runtime.core
+
+        if request == XrayTunnelProviderMessage.closeConnectionsRequest {
+            do {
+                let snapshot = try core.connectionSnapshot()
+                var closedConnections: UInt64 = 0
+                for connection in snapshot.connections {
+                    do {
+                        try core.closeConnection(id: connection.id)
+                        closedConnections += 1
+                    } catch {
+                        XrayAppleLog.info(
+                            "PacketTunnelProvider",
+                            "Connection already closed before close request completed"
+                        )
+                    }
+                }
+                XrayAppleLog.info(
+                    "PacketTunnelProvider",
+                    "Requested closure for \(closedConnections) active connection(s)"
+                )
+                completionHandler?(
+                    try XrayTunnelProviderMessage.encodeCloseConnectionsResponse(
+                        closedConnections
+                    )
+                )
+            } catch {
+                XrayAppleLog.error(
+                    "PacketTunnelProvider",
+                    "Failed to close active connections"
+                )
+                completionHandler?(nil)
+            }
+            return
+        }
+
+        guard request == XrayTunnelProviderMessage.statsRequest,
+              let stats = try? core.stats()
         else {
             XrayAppleLog.info("PacketTunnelProvider", "App message ignored or stats unavailable")
             completionHandler?(nil)
             return
         }
 
+        let resourceSnapshot = XrayPacketTunnelResourceSnapshot.current()
         let runtimeStats = XrayClientRuntimeStats(
             inboundPackets: stats.inboundPackets,
             outboundPackets: stats.outboundPackets,
@@ -767,6 +880,10 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             tcp443FirstByteDurationMsMax: stats.tcp443FirstByteDurationMsMax,
             activeTCPFlows: stats.activeTCPFlows,
             activeUDPFlows: stats.activeUDPFlows,
+            residentMemoryBytes: resourceSnapshot.residentMemoryBytes,
+            physicalFootprintBytes: resourceSnapshot.physicalFootprintBytes,
+            threadCount: resourceSnapshot.threadCount,
+            runtimeIdentifier: runtime.identifier,
             udpFlowLimit: stats.udpFlowLimit,
             udpBudgetDrops: stats.udpBudgetDrops,
             udpEvictedFlows: stats.udpEvictedFlows,
@@ -1318,7 +1435,11 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         }
         let scheme = String(server[..<separator])
         return scheme.caseInsensitiveCompare("tcp") == .orderedSame ||
-            scheme.caseInsensitiveCompare("tcp+local") == .orderedSame
+            scheme.caseInsensitiveCompare("tcp+local") == .orderedSame ||
+            scheme.caseInsensitiveCompare("tls") == .orderedSame ||
+            scheme.caseInsensitiveCompare("https") == .orderedSame ||
+            scheme.caseInsensitiveCompare("https+local") == .orderedSame ||
+            scheme.caseInsensitiveCompare("quic+local") == .orderedSame
     }
 
     private static func dnsTCPBootstrapUpstream(
@@ -1333,16 +1454,48 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         else {
             return nil
         }
+        let scheme = String(server[..<schemeSeparator])
+        let isHTTPS = scheme.caseInsensitiveCompare("https") == .orderedSame ||
+            scheme.caseInsensitiveCompare("https+local") == .orderedSame
+        let defaultPort: UInt16
+        if isHTTPS {
+            defaultPort = 443
+        } else if scheme.caseInsensitiveCompare("tls") == .orderedSame ||
+                    scheme.caseInsensitiveCompare("quic+local") == .orderedSame {
+            defaultPort = 853
+        } else {
+            defaultPort = 53
+        }
         let authorityPrefix = server.index(after: schemeSeparator)
         guard server[authorityPrefix...].hasPrefix("//") else {
             return nil
         }
         let authorityStart = server.index(authorityPrefix, offsetBy: 2)
-        let authority = String(server[authorityStart...])
+        let remainder = String(server[authorityStart...])
+        let authorityEnd = isHTTPS
+            ? (remainder.firstIndex(where: { "/?".contains($0) }) ?? remainder.endIndex)
+            : remainder.endIndex
+        let authority = String(remainder[..<authorityEnd])
+        let pathAndQuery = String(remainder[authorityEnd...])
         guard !authority.isEmpty,
-              !authority.contains(where: { "/?#@\\%".contains($0) })
+              !authority.contains(where: { "@\\%".contains($0) })
         else {
             return nil
+        }
+        if isHTTPS {
+            guard !remainder.contains("#"),
+                  pathAndQuery.isEmpty || pathAndQuery.hasPrefix("/") || pathAndQuery.hasPrefix("?"),
+                  pathAndQuery.unicodeScalars.allSatisfy({ $0.value <= 0x7f }),
+                  !pathAndQuery.contains("\\")
+            else {
+                return nil
+            }
+        } else {
+            guard pathAndQuery.isEmpty,
+                  !authority.contains(where: { "/?#".contains($0) })
+            else {
+                return nil
+            }
         }
 
         let host: String
@@ -1362,7 +1515,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             let remainderStart = authority.index(after: closingBracket)
             let remainder = authority[remainderStart...]
             if remainder.isEmpty {
-                port = 53
+                port = defaultPort
             } else {
                 guard remainder.first == ":",
                       let parsedPort = dnsTCPURLPort(
@@ -1391,7 +1544,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 port = parsedPort
             } else {
                 host = authority
-                port = 53
+                port = defaultPort
             }
             guard !host.isEmpty else {
                 return nil
@@ -2593,6 +2746,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
 @available(iOSApplicationExtension 15.0, tvOSApplicationExtension 17.0, macOSApplicationExtension 13.0, *)
 private final class XrayPacketTunnelRuntime {
     let core: XrayCore
+    let identifier = UUID().uuidString.lowercased()
 
     private let lock = NSLock()
     private var pump: XrayPacketTunnelPump?
@@ -2644,7 +2798,9 @@ private final class XrayPacketTunnelRuntime {
 
         timer?.setEventHandler {}
         timer?.cancel()
+        XrayAppleLog.info("PacketTunnelProvider", "Stopping packet pump")
         pump?.stop()
+        XrayAppleLog.info("PacketTunnelProvider", "Packet pump stopped; stopping XrayCore")
         do {
             try core.stop()
             XrayAppleLog.info("PacketTunnelProvider", "XrayCore stopped")

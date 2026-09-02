@@ -180,7 +180,30 @@ typedef struct XrayCoreHandle XrayCoreHandle;
 typedef struct XrayError XrayError;
 typedef int32_t (*XraySocketProtectCallback)(int32_t fd, void *user_data);
 
+/* Capability bits are additive within one ABI major. Preserve and ignore
+ * unknown bits so a newer library remains usable through its older surface. */
+typedef enum XrayFfiCapability {
+  XRAY_FFI_CAPABILITY_CONFIG_WARNINGS = 1 << 0,
+  XRAY_FFI_CAPABILITY_GEODATA_SEARCH = 1 << 1,
+  XRAY_FFI_CAPABILITY_SOCKET_PROTECTION = 1 << 2,
+  XRAY_FFI_CAPABILITY_STARTUP_PROBE = 1 << 3,
+  XRAY_FFI_CAPABILITY_FILE_LOGGING = 1 << 4,
+  XRAY_FFI_CAPABILITY_TUN_PACKET_IO = 1 << 5,
+  XRAY_FFI_CAPABILITY_TUN_FD = 1 << 6,
+  XRAY_FFI_CAPABILITY_TUN_BATCH_POLL = 1 << 7,
+  XRAY_FFI_CAPABILITY_TUN_RUNTIME_PROFILES = 1 << 8,
+  XRAY_FFI_CAPABILITY_DNS_BOOTSTRAP_POLICY = 1 << 9,
+  XRAY_FFI_CAPABILITY_TUN_STATS = 1 << 10,
+  XRAY_FFI_CAPABILITY_TUN_DIAGNOSTIC_EVENTS = 1 << 11,
+  XRAY_FFI_CAPABILITY_OUTBOUND_SELECTION = 1 << 12,
+  XRAY_FFI_CAPABILITY_OUTBOUND_HEALTH = 1 << 13,
+  XRAY_FFI_CAPABILITY_CONNECTION_MANAGEMENT = 1 << 14,
+  XRAY_FFI_CAPABILITY_ROUTING_POLICY_UPDATE = 1 << 15
+} XrayFfiCapability;
+
 uint32_t xray_ffi_version_major(void);
+uint32_t xray_ffi_version_minor(void);
+uint64_t xray_ffi_capabilities(void);
 
 XrayCoreHandle *xray_core_new(XrayError **error);
 /* Searches dir first, then the process default geodata directories. */
@@ -193,8 +216,9 @@ XrayStatus xray_core_set_geodata_search_dir_exclusive(
     XrayCoreHandle *handle,
     const char *dir,
     XrayError **error);
-/* A handle accepts exactly one successful config load. Create a new handle
- * to replace a configuration. */
+/* A handle accepts exactly one successful full-config load. Create a new
+ * handle to replace the full configuration; routing policy alone has the
+ * scoped live-update call below. */
 XrayStatus xray_core_load_config_json(
     XrayCoreHandle *handle,
     const char *json,
@@ -210,6 +234,59 @@ XrayStatus xray_core_config_warnings(
     XrayError **error);
 XrayStatus xray_core_start(XrayCoreHandle *handle, XrayError **error);
 XrayStatus xray_core_stop(XrayCoreHandle *handle, XrayError **error);
+/* Selector overrides affect new flows only and may be changed while running. */
+XrayStatus xray_core_set_outbound_selector_override(
+    XrayCoreHandle *handle,
+    const char *group_tag,
+    const char *outbound_tag,
+    XrayError **error);
+XrayStatus xray_core_clear_outbound_selector_override(
+    XrayCoreHandle *handle,
+    const char *group_tag,
+    XrayError **error);
+/* Replaces routing rules and compiled geodata matchers for new flows. `json`
+ * must contain exactly one top-level routing object. Balancer topology remains
+ * immutable; create a new core handle to change it. */
+XrayStatus xray_core_replace_routing_policy_json(
+    XrayCoreHandle *handle,
+    const char *json,
+    XrayError **error);
+/* Snapshot documents use schemaVersion 1. `written` excludes the trailing NUL;
+ * pass NULL/0 as buffer/buffer_len to query the required UTF-8 byte length. */
+XrayStatus xray_core_outbound_selection_snapshot_json(
+    const XrayCoreHandle *handle,
+    char *buffer,
+    size_t buffer_len,
+    size_t *written,
+    XrayError **error);
+XrayStatus xray_core_routing_policy_snapshot_json(
+    const XrayCoreHandle *handle,
+    char *buffer,
+    size_t buffer_len,
+    size_t *written,
+    XrayError **error);
+XrayStatus xray_core_outbound_health_snapshot_json(
+    const XrayCoreHandle *handle,
+    char *buffer,
+    size_t buffer_len,
+    size_t *written,
+    XrayError **error);
+XrayStatus xray_core_connection_snapshot_json(
+    const XrayCoreHandle *handle,
+    char *buffer,
+    size_t buffer_len,
+    size_t *written,
+    XrayError **error);
+XrayStatus xray_core_outbound_accounting_snapshot_json(
+    const XrayCoreHandle *handle,
+    char *buffer,
+    size_t buffer_len,
+    size_t *written,
+    XrayError **error);
+XrayStatus xray_core_close_connection(
+    XrayCoreHandle *handle,
+    uint64_t connection_id,
+    XrayError **error);
 XrayStatus xray_core_set_socket_protect_callback(
     XrayCoreHandle *handle,
     XraySocketProtectCallback callback,

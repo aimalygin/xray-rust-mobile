@@ -6,6 +6,14 @@ import NetworkExtension
 
 @available(macOS 13.0, *)
 final class XrayPacketTunnelProviderTests: XCTestCase {
+    func testCurrentResourceSnapshotIsPopulated() {
+        let snapshot = XrayPacketTunnelResourceSnapshot.current()
+
+        XCTAssertGreaterThan(snapshot.residentMemoryBytes, 0)
+        XCTAssertGreaterThan(snapshot.physicalFootprintBytes, 0)
+        XCTAssertGreaterThan(snapshot.threadCount, 0)
+    }
+
     func testProviderErrorNSErrorContractIsStable() {
         let expectedDomain = "XrayAppleTunnel.XrayPacketTunnelProviderError"
         let expectedCodes: [(XrayPacketTunnelProviderError, Int)] = [
@@ -580,11 +588,27 @@ final class XrayPacketTunnelProviderTests: XCTestCase {
 
     func testResolvedDnsConfigurationKeepsFakeIPAnchorWithSupportedDnsPolicyFields() {
         let configuration = XrayPacketTunnelProvider.resolvedDNSConfiguration(
-            configJSON: #"{"dns":{"fakeIp":{"enabled":true,"ipv4Pool":"198.19.0.0/16"},"queryStrategy":"UseIPv4","disableFallback":true,"disableFallbackIfMatch":true}}"#,
+            configJSON: #"{"dns":{"fakeIp":{"enabled":true,"ipv4Pool":"198.19.0.0/16"},"queryStrategy":"UseIPv4","disableCache":false,"serveStale":true,"serveExpiredTTL":3600,"disableFallback":true,"disableFallbackIfMatch":true}}"#,
             explicit: .system
         )
 
         XCTAssertEqual(configuration, .localDNSAnchor)
+    }
+
+    func testResolvedDnsConfigurationRejectsUnboundedOrContradictoryCachePolicy() {
+        for dns in [
+            #"{"serveStale":true}"#,
+            #"{"serveStale":true,"serveExpiredTTL":0}"#,
+            #"{"serveStale":true,"serveExpiredTTL":86401}"#,
+            #"{"disableCache":true,"serveStale":true,"serveExpiredTTL":60}"#,
+        ] {
+            let configuration = XrayPacketTunnelProvider.resolvedDNSConfiguration(
+                configJSON: "{\"dns\":\(dns)}",
+                explicit: .system
+            )
+
+            XCTAssertNil(configuration, "dns=\(dns)")
+        }
     }
 
     func testResolvedDnsConfigurationRejectsIPv4FakeIPWithIPv6OnlyStrategy() {
@@ -713,7 +737,14 @@ final class XrayPacketTunnelProviderTests: XCTestCase {
             #""tcp://192.0.2.53""#,
             #""TCP+LOCAL://[2001:db8::53]:5353""#,
             #""Tcp://Resolver.Example.:5353""#,
+            #""TLS://Resolver.Example""#,
+            #""tls://192.0.2.53""#,
+            #""https://DoH.Example/dns-query""#,
+            #""HTTPS+LOCAL://192.0.2.53:8443/custom?profile=mobile""#,
+            #""https://[2001:db8::53]/dns-query""#,
+            #""QUIC+LOCAL://DoQ.Example""#,
             #"{"address":"tcp+local://resolver.example","port":0,"tag":"dns-local"}"#,
+            #"{"address":"https://resolver.example/dns-query","port":0,"tag":"dns-doh"}"#,
         ] {
             let configuration = XrayPacketTunnelProvider.resolvedDNSConfiguration(
                 configJSON: "{\"dns\":{\"servers\":[\(server)]}}",
@@ -743,6 +774,18 @@ final class XrayPacketTunnelProviderTests: XCTestCase {
             #""tcp://resolver\u0001.example""#,
             #""tcp://198.18.0.1""#,
             #""tcp://198.18.0.1:5353""#,
+            #""tls://resolver.example/dns-query""#,
+            #""tls://198.18.0.1""#,
+            #""https:/resolver.example/dns-query""#,
+            #""https://user@resolver.example/dns-query""#,
+            #""https://resolver.example:0/dns-query""#,
+            #""https://resolver.example/dns-query#fragment""#,
+            #""https://2001:db8::53/dns-query""#,
+            #""https://198.18.0.1/dns-query""#,
+            #""https+local://[fd00:7872::2]/dns-query""#,
+            #""quic://resolver.example""#,
+            #""quic+local://resolver.example/dns-query""#,
+            #""quic+local://198.18.0.1""#,
             #"{"address":"tcp+local://resolver.example/path"}"#,
             #"{"address":"tcp://resolver.example","port":"53"}"#,
             #"{"address":"tcp://resolver.example","port":65536}"#,

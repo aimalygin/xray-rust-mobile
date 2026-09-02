@@ -4,6 +4,7 @@ import XrayRust
 public enum XrayCoreError: Error, CustomStringConvertible, CustomNSError, LocalizedError {
     case status(code: XrayStatus, message: String)
     case incompatibleFFIMajorVersion(expected: UInt32, actual: UInt32)
+    case incompatibleFFIMinorVersion(required: UInt32, actual: UInt32)
     case invalidPacketPollSize(Int)
     case invalidPacketBatchLimits(maxPackets: Int, maxPacketBytes: Int)
     case packetBatchSizeOverflow(maxPackets: Int, maxPacketBytes: Int)
@@ -18,6 +19,8 @@ public enum XrayCoreError: Error, CustomStringConvertible, CustomNSError, Locali
             return "xray status \(code): \(message)"
         case let .incompatibleFFIMajorVersion(expected, actual):
             return "incompatible xray FFI ABI major: expected \(expected), got \(actual)"
+        case let .incompatibleFFIMinorVersion(required, actual):
+            return "incompatible xray FFI ABI minor: require at least \(required), got \(actual)"
         case let .invalidPacketPollSize(maxBytes):
             return "packet poll buffer size must be between 1 and 65535 bytes, got \(maxBytes)"
         case let .invalidPacketBatchLimits(maxPackets, maxPacketBytes):
@@ -61,6 +64,8 @@ public enum XrayCoreError: Error, CustomStringConvertible, CustomNSError, Locali
             return 7
         case .invalidUtf8:
             return 8
+        case .incompatibleFFIMinorVersion:
+            return 9
         }
     }
 
@@ -71,6 +76,299 @@ public enum XrayCoreError: Error, CustomStringConvertible, CustomNSError, Locali
     public var errorDescription: String? {
         description
     }
+}
+
+public struct XrayFFIVersion: Equatable, Sendable {
+    public let major: UInt32
+    public let minor: UInt32
+
+    public init(major: UInt32, minor: UInt32) {
+        self.major = major
+        self.minor = minor
+    }
+}
+
+public struct XrayFFICapabilities: OptionSet, Equatable, Sendable {
+    public let rawValue: UInt64
+
+    public init(rawValue: UInt64) {
+        self.rawValue = rawValue
+    }
+
+    public static let configWarnings = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_CONFIG_WARNINGS.rawValue)
+    )
+    public static let geodataSearch = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_GEODATA_SEARCH.rawValue)
+    )
+    public static let socketProtection = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_SOCKET_PROTECTION.rawValue)
+    )
+    public static let startupProbe = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_STARTUP_PROBE.rawValue)
+    )
+    public static let fileLogging = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_FILE_LOGGING.rawValue)
+    )
+    public static let tunPacketIO = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_PACKET_IO.rawValue)
+    )
+    public static let tunFileDescriptor = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_FD.rawValue)
+    )
+    public static let tunBatchPoll = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_BATCH_POLL.rawValue)
+    )
+    public static let tunRuntimeProfiles = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_RUNTIME_PROFILES.rawValue)
+    )
+    public static let dnsBootstrapPolicy = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_DNS_BOOTSTRAP_POLICY.rawValue)
+    )
+    public static let tunStats = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_STATS.rawValue)
+    )
+    public static let tunDiagnosticEvents = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_TUN_DIAGNOSTIC_EVENTS.rawValue)
+    )
+    public static let outboundSelection = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_OUTBOUND_SELECTION.rawValue)
+    )
+    public static let outboundHealth = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_OUTBOUND_HEALTH.rawValue)
+    )
+    public static let connectionManagement = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_CONNECTION_MANAGEMENT.rawValue)
+    )
+    public static let routingPolicyUpdate = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_ROUTING_POLICY_UPDATE.rawValue)
+    )
+}
+
+public struct XrayFFIInfo: Equatable, Sendable {
+    public let version: XrayFFIVersion
+    public let capabilities: XrayFFICapabilities
+
+    public init(version: XrayFFIVersion, capabilities: XrayFFICapabilities) {
+        self.version = version
+        self.capabilities = capabilities
+    }
+
+    public func supports(_ capability: XrayFFICapabilities) -> Bool {
+        capabilities.contains(capability)
+    }
+}
+
+public enum XrayRoutingDomainStrategy: String, Codable, Equatable, Sendable {
+    case asIs
+    case ipIfNonMatch
+}
+
+public struct XrayRoutingPolicySnapshot: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let revision: UInt64
+    public let ruleCount: Int
+    public let domainStrategy: XrayRoutingDomainStrategy
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case revision
+        case ruleCount
+        case domainStrategy
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "unsupported routing policy snapshot schema: \(schemaVersion)"
+            )
+        }
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        ruleCount = try container.decode(Int.self, forKey: .ruleCount)
+        domainStrategy = try container.decode(
+            XrayRoutingDomainStrategy.self,
+            forKey: .domainStrategy
+        )
+    }
+}
+
+public struct XrayOutboundSelectionSnapshot: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let revision: UInt64
+    public let groups: [XrayOutboundSelectorGroupSnapshot]
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case revision
+        case groups
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "unsupported outbound selection snapshot schema: \(schemaVersion)"
+            )
+        }
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        groups = try container.decode(
+            [XrayOutboundSelectorGroupSnapshot].self,
+            forKey: .groups
+        )
+    }
+}
+
+public struct XrayOutboundSelectorGroupSnapshot: Codable, Equatable, Sendable {
+    public let tag: String
+    public let candidates: [String]
+    public let overrideTag: String?
+}
+
+public enum XrayOutboundHealthState: String, Codable, Equatable, Sendable {
+    case unknown
+    case healthy
+    case unhealthy
+}
+
+public enum XrayOutboundHealthFailureKind: String, Codable, Equatable, Sendable {
+    case timeout
+    case transport
+    case tls
+    case io
+    case malformedHttpResponse
+    case httpStatus
+}
+
+public struct XrayOutboundHealthSnapshot: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let revision: UInt64
+    public let outbounds: [XrayOutboundHealthStatus]
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case revision
+        case outbounds
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "unsupported outbound health snapshot schema: \(schemaVersion)"
+            )
+        }
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        outbounds = try container.decode([XrayOutboundHealthStatus].self, forKey: .outbounds)
+    }
+}
+
+public struct XrayOutboundHealthStatus: Codable, Equatable, Sendable {
+    public let tag: String
+    public let state: XrayOutboundHealthState
+    public let delayMs: UInt64?
+    public let lastTryUnixMs: UInt64?
+    public let lastSeenUnixMs: UInt64?
+    public let consecutiveFailures: UInt64
+    public let lastFailureKind: XrayOutboundHealthFailureKind?
+    public let httpStatus: UInt16?
+}
+
+public enum XrayConnectionState: String, Codable, Equatable, Sendable {
+    case opening
+    case active
+}
+
+public enum XrayConnectionNetwork: String, Codable, Equatable, Sendable {
+    case tcp
+    case udp
+}
+
+public enum XrayConnectionAddressType: String, Codable, Equatable, Sendable {
+    case ip
+    case domain
+}
+
+public struct XrayConnectionSnapshot: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let revision: UInt64
+    public let connections: [XrayConnectionInfo]
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case revision
+        case connections
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "unsupported connection snapshot schema: \(schemaVersion)"
+            )
+        }
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        connections = try container.decode([XrayConnectionInfo].self, forKey: .connections)
+    }
+}
+
+public struct XrayConnectionInfo: Codable, Equatable, Sendable {
+    public let id: UInt64
+    public let state: XrayConnectionState
+    public let inboundTag: String?
+    public let outboundTag: String?
+    public let network: XrayConnectionNetwork
+    public let addressType: XrayConnectionAddressType
+    public let address: String
+    public let port: UInt16
+    public let startedUnixMs: UInt64
+}
+
+public struct XrayOutboundAccountingSnapshot: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let revision: UInt64
+    public let outbounds: [XrayOutboundAccounting]
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case revision
+        case outbounds
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "unsupported outbound accounting snapshot schema: \(schemaVersion)"
+            )
+        }
+        revision = try container.decode(UInt64.self, forKey: .revision)
+        outbounds = try container.decode([XrayOutboundAccounting].self, forKey: .outbounds)
+    }
+}
+
+public struct XrayOutboundAccounting: Codable, Equatable, Sendable {
+    public let outboundTag: String?
+    public let openedConnections: UInt64
+    public let completedConnections: UInt64
+    public let hostClosedConnections: UInt64
+    public let uplinkBytes: UInt64
+    public let downlinkBytes: UInt64
 }
 
 /// Controls whether the core may use the platform resolver for bootstrap lookups.
@@ -470,6 +768,7 @@ private extension XrayTcpSlowFlowKind {
 
 public final class XrayCore: @unchecked Sendable {
     static let expectedFFIMajorVersion: UInt32 = 1
+    static let minimumFFIMinorVersion: UInt32 = 1
     static let maximumPolledPacketBytes = 65_535
     static let maximumPacketBatchBytes = 4 * 1_024 * 1_024
 
@@ -477,6 +776,16 @@ public final class XrayCore: @unchecked Sendable {
     private var handle: OpaquePointer?
     private var dataPathEnabled = false
     private var retainedSocketProtectContext: Unmanaged<XraySocketProtectContext>?
+
+    public static var ffiInfo: XrayFFIInfo {
+        XrayFFIInfo(
+            version: XrayFFIVersion(
+                major: xray_ffi_version_major(),
+                minor: xray_ffi_version_minor()
+            ),
+            capabilities: XrayFFICapabilities(rawValue: xray_ffi_capabilities())
+        )
+    }
 
     public static func tunRuntimeProfile(named rawValue: String) -> XrayTunRuntimeProfile {
         switch rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
@@ -535,7 +844,11 @@ public final class XrayCore: @unchecked Sendable {
         tunPacketFormat: XrayTunFdPacketFormat = XRAY_TUN_FD_PACKET_FORMAT_RAW_IP,
         tunClosePolicy: XrayTunFdClosePolicy = XRAY_TUN_FD_CLOSE_POLICY_BORROWED
     ) throws {
-        try Self.validateFFIMajorVersion(xray_ffi_version_major())
+        let ffiInfo = Self.ffiInfo
+        try Self.validateFFIVersion(
+            major: ffiInfo.version.major,
+            minor: ffiInfo.version.minor
+        )
 
         var error: OpaquePointer?
         XrayMobileLog.info(
@@ -680,11 +993,17 @@ public final class XrayCore: @unchecked Sendable {
         }
     }
 
-    static func validateFFIMajorVersion(_ actual: UInt32) throws {
-        guard actual == expectedFFIMajorVersion else {
+    static func validateFFIVersion(major: UInt32, minor: UInt32) throws {
+        guard major == expectedFFIMajorVersion else {
             throw XrayCoreError.incompatibleFFIMajorVersion(
                 expected: expectedFFIMajorVersion,
-                actual: actual
+                actual: major
+            )
+        }
+        guard minor >= minimumFFIMinorVersion else {
+            throw XrayCoreError.incompatibleFFIMinorVersion(
+                required: minimumFFIMinorVersion,
+                actual: minor
             )
         }
     }
@@ -730,6 +1049,106 @@ public final class XrayCore: @unchecked Sendable {
         } catch {
             XrayMobileLog.error("Core", "Core stop failed: \(error)")
             throw error
+        }
+    }
+
+    public func setOutboundSelectorOverride(groupTag: String, outboundTag: String) throws {
+        try requireCapability(.outboundSelection)
+        try withSharedHandle { handle in
+            var error: OpaquePointer?
+            try groupTag.withCString { groupPointer in
+                try outboundTag.withCString { outboundPointer in
+                    try check(
+                        xray_core_set_outbound_selector_override(
+                            handle,
+                            groupPointer,
+                            outboundPointer,
+                            &error
+                        ),
+                        error: error
+                    )
+                }
+            }
+        }
+    }
+
+    public func clearOutboundSelectorOverride(groupTag: String) throws {
+        try requireCapability(.outboundSelection)
+        try withSharedHandle { handle in
+            var error: OpaquePointer?
+            try groupTag.withCString { groupPointer in
+                try check(
+                    xray_core_clear_outbound_selector_override(
+                        handle,
+                        groupPointer,
+                        &error
+                    ),
+                    error: error
+                )
+            }
+        }
+    }
+
+    /// Replaces routing rules and compiled geodata matchers for new flows.
+    /// The JSON document must contain exactly one top-level `routing` object.
+    public func replaceRoutingPolicy(configJSON: String) throws {
+        try requireCapability(.routingPolicyUpdate)
+        try withSharedHandle { handle in
+            var error: OpaquePointer?
+            try configJSON.withCString { pointer in
+                try check(
+                    xray_core_replace_routing_policy_json(handle, pointer, &error),
+                    error: error
+                )
+            }
+        }
+    }
+
+    public func routingPolicySnapshot() throws -> XrayRoutingPolicySnapshot {
+        try requireCapability(.routingPolicyUpdate)
+        return try withSharedHandle { handle in
+            let data = try snapshotJSON(handle: handle, kind: .routingPolicy)
+            return try JSONDecoder().decode(XrayRoutingPolicySnapshot.self, from: data)
+        }
+    }
+
+    public func outboundSelectionSnapshot() throws -> XrayOutboundSelectionSnapshot {
+        try requireCapability(.outboundSelection)
+        return try withSharedHandle { handle in
+            let data = try snapshotJSON(handle: handle, kind: .selection)
+            return try JSONDecoder().decode(XrayOutboundSelectionSnapshot.self, from: data)
+        }
+    }
+
+    public func outboundHealthSnapshot() throws -> XrayOutboundHealthSnapshot {
+        try requireCapability(.outboundHealth)
+        return try withSharedHandle { handle in
+            let data = try snapshotJSON(handle: handle, kind: .health)
+            return try JSONDecoder().decode(XrayOutboundHealthSnapshot.self, from: data)
+        }
+    }
+
+    public func connectionSnapshot() throws -> XrayConnectionSnapshot {
+        try requireCapability(.connectionManagement)
+        return try withSharedHandle { handle in
+            let data = try snapshotJSON(handle: handle, kind: .connections)
+            return try JSONDecoder().decode(XrayConnectionSnapshot.self, from: data)
+        }
+    }
+
+    public func outboundAccountingSnapshot() throws -> XrayOutboundAccountingSnapshot {
+        try requireCapability(.connectionManagement)
+        return try withSharedHandle { handle in
+            let data = try snapshotJSON(handle: handle, kind: .accounting)
+            return try JSONDecoder().decode(XrayOutboundAccountingSnapshot.self, from: data)
+        }
+    }
+
+    public func closeConnection(id: UInt64) throws {
+        try requireCapability(.connectionManagement)
+        try withSharedHandle { handle in
+            var error: OpaquePointer?
+            try check(xray_core_close_connection(handle, id, &error), error: error)
         }
     }
 
@@ -1247,15 +1666,139 @@ public final class XrayCore: @unchecked Sendable {
         }
     }
 
-    private func withDataPathHandle<T>(_ body: (OpaquePointer) throws -> T) throws -> T {
+    private func withSharedHandle<T>(_ body: (OpaquePointer) throws -> T) throws -> T {
         try callGate.withDataPath {
             guard let handle else {
                 throw XrayCoreError.missingHandle
             }
+            return try body(handle)
+        }
+    }
+
+    private func withDataPathHandle<T>(_ body: (OpaquePointer) throws -> T) throws -> T {
+        try withSharedHandle { handle in
             guard dataPathEnabled else {
                 throw XrayCoreError.notRunning
             }
             return try body(handle)
+        }
+    }
+
+    private enum SnapshotKind {
+        case routingPolicy
+        case selection
+        case health
+        case connections
+        case accounting
+    }
+
+    private func snapshotJSON(handle: OpaquePointer, kind: SnapshotKind) throws -> Data {
+        var requiredLength = 0
+        var error: OpaquePointer?
+        let queryStatus: XrayStatus
+        switch kind {
+        case .routingPolicy:
+            queryStatus = xray_core_routing_policy_snapshot_json(
+                handle,
+                nil,
+                0,
+                &requiredLength,
+                &error
+            )
+        case .selection:
+            queryStatus = xray_core_outbound_selection_snapshot_json(
+                handle,
+                nil,
+                0,
+                &requiredLength,
+                &error
+            )
+        case .health:
+            queryStatus = xray_core_outbound_health_snapshot_json(
+                handle,
+                nil,
+                0,
+                &requiredLength,
+                &error
+            )
+        case .connections:
+            queryStatus = xray_core_connection_snapshot_json(
+                handle,
+                nil,
+                0,
+                &requiredLength,
+                &error
+            )
+        case .accounting:
+            queryStatus = xray_core_outbound_accounting_snapshot_json(
+                handle,
+                nil,
+                0,
+                &requiredLength,
+                &error
+            )
+        }
+        try check(queryStatus, error: error)
+
+        var buffer = [CChar](repeating: 0, count: requiredLength + 1)
+        var written = 0
+        let status = buffer.withUnsafeMutableBufferPointer { pointer in
+            switch kind {
+            case .routingPolicy:
+                return xray_core_routing_policy_snapshot_json(
+                    handle,
+                    pointer.baseAddress,
+                    pointer.count,
+                    &written,
+                    &error
+                )
+            case .selection:
+                return xray_core_outbound_selection_snapshot_json(
+                    handle,
+                    pointer.baseAddress,
+                    pointer.count,
+                    &written,
+                    &error
+                )
+            case .health:
+                return xray_core_outbound_health_snapshot_json(
+                    handle,
+                    pointer.baseAddress,
+                    pointer.count,
+                    &written,
+                    &error
+                )
+            case .connections:
+                return xray_core_connection_snapshot_json(
+                    handle,
+                    pointer.baseAddress,
+                    pointer.count,
+                    &written,
+                    &error
+                )
+            case .accounting:
+                return xray_core_outbound_accounting_snapshot_json(
+                    handle,
+                    pointer.baseAddress,
+                    pointer.count,
+                    &written,
+                    &error
+                )
+            }
+        }
+        try check(status, error: error)
+        guard written <= requiredLength else {
+            throw XrayCoreError.invalidUtf8
+        }
+        return Data(buffer.prefix(written).map { UInt8(bitPattern: $0) })
+    }
+
+    private func requireCapability(_ capability: XrayFFICapabilities) throws {
+        guard Self.ffiInfo.supports(capability) else {
+            throw XrayCoreError.status(
+                code: XRAY_STATUS_RUNTIME_ERROR,
+                message: "required xray FFI capability is unavailable"
+            )
         }
     }
 

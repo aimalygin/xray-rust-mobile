@@ -29,9 +29,270 @@ class XrayTunBackendTest {
     }
 
     @Test
+    fun stateMachineExposesOnlyThePublishedRunningSession() {
+        val lifecycle = XrayTunnelStateMachine<String>()
+        assertNull(lifecycle.runningSession())
+
+        val token = lifecycle.beginStart()
+        assertNotNull(token)
+        assertNull(lifecycle.runningSession())
+        assertTrue(lifecycle.publish(checkNotNull(token), "session"))
+        assertEquals("session", lifecycle.runningSession())
+
+        assertEquals(
+            XrayTunnelStopAction.StopSession("session"),
+            lifecycle.requestStop(),
+        )
+        assertNull(lifecycle.runningSession())
+        lifecycle.completeStop()
+        assertNull(lifecycle.runningSession())
+    }
+
+    @Test
     fun dnsBootstrapModesMatchTheCAbiDiscriminants() {
         assertEquals(0, XrayDnsBootstrapMode.System.ffiValue)
         assertEquals(1, XrayDnsBootstrapMode.StaticOnly.ffiValue)
+    }
+
+    @Test
+    fun ffiVersionValidationAcceptsCurrentAndNewerMinor() {
+        validateXrayFfiVersion(XrayFfiVersion(major = 1, minor = 1))
+        validateXrayFfiVersion(XrayFfiVersion(major = 1, minor = 2))
+        validateXrayFfiVersion(XrayFfiVersion(major = 1, minor = 3))
+        validateXrayFfiVersion(XrayFfiVersion(major = 1, minor = 4))
+    }
+
+    @Test
+    fun ffiVersionValidationRejectsWrongMajorAndOlderMinor() {
+        val majorError = assertThrows(IllegalStateException::class.java) {
+            validateXrayFfiVersion(XrayFfiVersion(major = 2, minor = 1))
+        }
+        assertTrue(majorError.message?.contains("expected 1, got 2") == true)
+
+        val minorError = assertThrows(IllegalStateException::class.java) {
+            validateXrayFfiVersion(XrayFfiVersion(major = 1, minor = 0))
+        }
+        assertTrue(minorError.message?.contains("at least 1, got 0") == true)
+    }
+
+    @Test
+    fun ffiInfoPreservesUnknownBitsAndReportsKnownCapabilities() {
+        val unknown = 1L shl 63
+        val info = XrayFfiInfo(
+            version = XrayFfiVersion(major = 1, minor = 1),
+            capabilityMask = XrayFfiCapability.ConfigWarnings.mask or
+                XrayFfiCapability.TunFileDescriptor.mask or unknown,
+        )
+
+        assertTrue(info.supports(XrayFfiCapability.ConfigWarnings))
+        assertTrue(info.supports(XrayFfiCapability.TunFileDescriptor))
+        assertFalse(info.supports(XrayFfiCapability.StartupProbe))
+        assertEquals(unknown, info.capabilityMask and unknown)
+    }
+
+    @Test
+    fun outboundCapabilitiesKeepStableAbiBits() {
+        assertEquals(1L shl 12, XrayFfiCapability.OutboundSelection.mask)
+        assertEquals(1L shl 13, XrayFfiCapability.OutboundHealth.mask)
+        assertEquals(1L shl 14, XrayFfiCapability.ConnectionManagement.mask)
+        assertEquals(1L shl 15, XrayFfiCapability.RoutingPolicyUpdate.mask)
+    }
+
+    @Test
+    fun routingPolicySnapshotParsesVersionedWireContract() {
+        val snapshot = parseRoutingPolicySnapshot(
+            """{"schemaVersion":1,"revision":4,"ruleCount":12,"domainStrategy":"ipIfNonMatch"}""",
+        )
+
+        assertEquals(1, snapshot.schemaVersion)
+        assertEquals(4L, snapshot.revision)
+        assertEquals(12, snapshot.ruleCount)
+        assertEquals(XrayRoutingDomainStrategy.IpIfNonMatch, snapshot.domainStrategy)
+    }
+
+    @Test
+    fun outboundSelectionSnapshotParsesVersionedWireContract() {
+        val snapshot = parseOutboundSelectionSnapshot(
+            """{"schemaVersion":1,"revision":7,"groups":[{"tag":"auto","candidates":["proxy-a","proxy-b"],"overrideTag":"proxy-b"}]}""",
+        )
+
+        assertEquals(1, snapshot.schemaVersion)
+        assertEquals(7L, snapshot.revision)
+        assertEquals(1, snapshot.groups.size)
+        assertEquals("auto", snapshot.groups[0].tag)
+        assertEquals(listOf("proxy-a", "proxy-b"), snapshot.groups[0].candidates)
+        assertEquals("proxy-b", snapshot.groups[0].overrideTag)
+    }
+
+    @Test
+    fun outboundHealthSnapshotParsesRedactedWireContract() {
+        val snapshot = parseOutboundHealthSnapshot(
+            """{"schemaVersion":1,"revision":3,"outbounds":[{"tag":"proxy-a","state":"unhealthy","delayMs":null,"lastTryUnixMs":42,"lastSeenUnixMs":null,"consecutiveFailures":2,"lastFailureKind":"httpStatus","httpStatus":503}]}""",
+        )
+
+        assertEquals(1, snapshot.schemaVersion)
+        assertEquals(3L, snapshot.revision)
+        assertEquals(1, snapshot.outbounds.size)
+        assertEquals(XrayOutboundHealthState.Unhealthy, snapshot.outbounds[0].state)
+        assertEquals(2L, snapshot.outbounds[0].consecutiveFailures)
+        assertEquals(
+            XrayOutboundHealthFailureKind.HttpStatus,
+            snapshot.outbounds[0].lastFailureKind,
+        )
+        assertEquals(503, snapshot.outbounds[0].httpStatus)
+    }
+
+    @Test
+    fun connectionAndAccountingSnapshotsParseVersionedWireContracts() {
+        val connections = parseConnectionSnapshot(
+            """{"schemaVersion":1,"revision":9,"connections":[{"id":17,"state":"active","inboundTag":"tun-in","outboundTag":"direct","network":"udp","addressType":"ip","address":"127.0.0.1","port":53,"startedUnixMs":42}]}""",
+        )
+        assertEquals(9L, connections.revision)
+        assertEquals(17L, connections.connections[0].id)
+        assertEquals(XrayConnectionState.Active, connections.connections[0].state)
+        assertEquals(XrayConnectionNetwork.Udp, connections.connections[0].network)
+        assertEquals(XrayConnectionAddressType.Ip, connections.connections[0].addressType)
+        assertEquals(53, connections.connections[0].port)
+
+        val accounting = parseOutboundAccountingSnapshot(
+            """{"schemaVersion":1,"revision":10,"outbounds":[{"outboundTag":"direct","openedConnections":3,"completedConnections":2,"hostClosedConnections":1,"uplinkBytes":64,"downlinkBytes":96}]}""",
+        )
+        assertEquals(10L, accounting.revision)
+        assertEquals("direct", accounting.outbounds[0].outboundTag)
+        assertEquals(1L, accounting.outbounds[0].hostClosedConnections)
+        assertEquals(96L, accounting.outbounds[0].downlinkBytes)
+    }
+
+    @Test
+    fun nativeTunDiagnosticsProjectToTypedKotlinEvents() {
+        val tcpSlow = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.TcpSlowFlow.ffiValue,
+            subtype = XrayTcpSlowFlowEventKind.FirstByte.ffiValue,
+            target = "example.test:443",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(12, 34),
+        ).toTcpSlowFlowEvent()
+        assertEquals(XrayTcpSlowFlowEventKind.FirstByte, tcpSlow.kind)
+        assertEquals(34L, tcpSlow.firstByteDurationMs)
+
+        val summary = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.TcpFlowSummary.ffiValue,
+            subtype = 0,
+            target = "example.test:443",
+            outboundTag = "proxy-a",
+            error = null,
+            values = longArrayOf(1, 100, 10, 20, 64, 1, 2, 3, 4, 5),
+        ).toTcpFlowSummaryEvent()
+        assertTrue(summary.closed)
+        assertEquals("proxy-a", summary.outboundTag)
+        assertEquals(5L, summary.msTo1MiB)
+
+        val slowWrite = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.TcpRemoteWriteSlow.ffiValue,
+            subtype = 0,
+            target = "example.test:443",
+            outboundTag = "proxy-a",
+            error = null,
+            values = longArrayOf(75, 4096, 3),
+        ).toTcpRemoteWriteSlowEvent()
+        assertEquals(4096L, slowWrite.bytes)
+
+        val openError = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.TcpOpenError.ffiValue,
+            subtype = 0,
+            target = "example.test:443",
+            outboundTag = "proxy-a",
+            error = "connect timeout",
+            values = longArrayOf(),
+        ).toTcpOpenErrorEvent()
+        assertEquals("connect timeout", openError.error)
+
+        val udpSlow = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.UdpSlowFlow.ffiValue,
+            subtype = 0,
+            target = "resolver.test:53",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(50, 64, 96),
+        ).toUdpSlowFlowEvent()
+        assertEquals(50L, udpSlow.firstResponseDurationMs)
+
+        val responseGap = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.UdpResponseGap.ffiValue,
+            subtype = 0,
+            target = "resolver.test:53",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(80, 128, 256),
+        ).toUdpResponseGapEvent()
+        assertEquals(80L, responseGap.responseGapDurationMs)
+
+        val quicBlocked = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.UdpQuicBlocked.ffiValue,
+            subtype = 0,
+            target = "example.test:443",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(1200),
+        ).toUdpQuicBlockedEvent()
+        assertEquals(1200L, quicBlocked.bytes)
+    }
+
+    @Test
+    fun nativeTunDiagnosticsRejectMismatchedShapes() {
+        val wrongKind = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.UdpSlowFlow.ffiValue,
+            subtype = 0,
+            target = "resolver.test:53",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(1, 2, 3),
+        )
+        assertThrows(IllegalStateException::class.java) {
+            wrongKind.toTcpRemoteWriteSlowEvent()
+        }
+
+        val missingError = NativeTunDiagnosticEvent(
+            kind = NativeTunDiagnosticKind.TcpOpenError.ffiValue,
+            subtype = 0,
+            target = "example.test:443",
+            outboundTag = null,
+            error = null,
+            values = longArrayOf(),
+        )
+        assertThrows(IllegalStateException::class.java) {
+            missingError.toTcpOpenErrorEvent()
+        }
+    }
+
+    @Test
+    fun outboundSnapshotParsersRejectUnknownSchemaVersions() {
+        assertThrows(IllegalArgumentException::class.java) {
+            parseRoutingPolicySnapshot(
+                """{"schemaVersion":2,"revision":0,"ruleCount":0,"domainStrategy":"asIs"}""",
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            parseOutboundSelectionSnapshot(
+                """{"schemaVersion":2,"revision":0,"groups":[]}""",
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            parseOutboundHealthSnapshot(
+                """{"schemaVersion":2,"revision":0,"outbounds":[]}""",
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            parseConnectionSnapshot(
+                """{"schemaVersion":2,"revision":0,"connections":[]}""",
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            parseOutboundAccountingSnapshot(
+                """{"schemaVersion":2,"revision":0,"outbounds":[]}""",
+            )
+        }
     }
 
     @Test
@@ -110,6 +371,29 @@ class XrayTunBackendTest {
                 ),
             ),
         )
+        assertEquals(
+            AndroidDnsBootstrapDomain("secure.example", 853, rejectsTunnelOwnedAddress = true),
+            dnsServerBootstrapUpstreamDomain("TLS://Secure.Example."),
+        )
+        assertNull(dnsServerBootstrapUpstreamDomain("tls://192.0.2.53"))
+        assertEquals(
+            AndroidDnsBootstrapDomain("doh.example", 443, rejectsTunnelOwnedAddress = true),
+            dnsServerBootstrapUpstreamDomain("https://DoH.Example./dns-query"),
+        )
+        assertEquals(
+            AndroidDnsBootstrapDomain("doh-local.example", 8443, rejectsTunnelOwnedAddress = true),
+            dnsServerBootstrapUpstreamDomain(
+                mapOf(
+                    "address" to "HTTPS+LOCAL://DoH-Local.Example.:8443/custom?profile=mobile",
+                    "port" to 0,
+                ),
+            ),
+        )
+        assertEquals(
+            AndroidDnsBootstrapDomain("doq.example", 853, rejectsTunnelOwnedAddress = true),
+            dnsServerBootstrapUpstreamDomain("QUIC+LOCAL://DoQ.Example."),
+        )
+        assertNull(dnsServerBootstrapUpstreamDomain("https://192.0.2.53/dns-query"))
     }
 
     @Test
@@ -135,6 +419,18 @@ class XrayTunBackendTest {
             "tcp://$XRAY_TUN_DNS_ANCHOR:5353",
             "tcp://10.7.0.1:5353",
             "tcp+local://[fd00:7872::1]:5353",
+            "tls://resolver.example/dns-query",
+            "tls://$XRAY_TUN_DNS_ANCHOR",
+            "https:/resolver.example/dns-query",
+            "https://user@resolver.example/dns-query",
+            "https://resolver.example:0/dns-query",
+            "https://resolver.example/dns-query#fragment",
+            "https://2001:db8::53/dns-query",
+            "https://$XRAY_TUN_DNS_ANCHOR/dns-query",
+            "https+local://[fd00:7872::1]/dns-query",
+            "quic://resolver.example",
+            "quic+local://resolver.example/dns-query",
+            "quic+local://$XRAY_TUN_DNS_ANCHOR",
             mapOf("address" to "tcp+local://resolver.example/path"),
             mapOf("address" to "tcp://resolver.example", "port" to "53"),
             mapOf("address" to "tcp://resolver.example", "port" to 65_536),
@@ -737,6 +1033,41 @@ class XrayTunBackendTest {
             assertTrue(objectServer.getBoolean("skipFallback"))
             assertEquals("UseIPv4", objectServer.getString("queryStrategy"))
             assertTrue(objectServer.getBoolean("finalQuery"))
+        } finally {
+            resolver.close()
+        }
+    }
+
+    @Test
+    fun dnsCachePolicyRequiresAnExplicitBoundedStaleWindow() {
+        val resolver = BoundedAndroidDnsBootstrapResolver(maxConcurrentLookups = 1) {
+            error("cache-only preflight must not resolve a domain")
+        }
+        try {
+            val valid = prepareAndroidVpnConfigWithinDeadline(
+                configJson =
+                    """{"dns":{"disableCache":false,"serveStale":true,"serveExpiredTTL":3600}}""",
+                resolver = resolver,
+                deadline = AndroidDnsBootstrapDeadline(TimeUnit.SECONDS.toNanos(1)),
+            )
+            val dns = JSONObject(valid.json).getJSONObject("dns")
+            assertTrue(dns.getBoolean("serveStale"))
+            assertEquals(3600, dns.getInt("serveExpiredTTL"))
+
+            for (invalid in listOf(
+                """{"dns":{"serveStale":true}}""",
+                """{"dns":{"serveStale":true,"serveExpiredTTL":0}}""",
+                """{"dns":{"serveStale":true,"serveExpiredTTL":86401}}""",
+                """{"dns":{"disableCache":true,"serveStale":true,"serveExpiredTTL":60}}""",
+            )) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    prepareAndroidVpnConfigWithinDeadline(
+                        configJson = invalid,
+                        resolver = resolver,
+                        deadline = AndroidDnsBootstrapDeadline(TimeUnit.SECONDS.toNanos(1)),
+                    )
+                }
+            }
         } finally {
             resolver.close()
         }

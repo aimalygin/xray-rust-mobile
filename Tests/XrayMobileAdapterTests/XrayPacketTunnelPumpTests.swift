@@ -180,18 +180,164 @@ final class XrayPacketTunnelPumpTests: XCTestCase {
         }
     }
 
-    func testFFIMajorVersionValidationAcceptsCurrentABI() {
-        XCTAssertNoThrow(try XrayCore.validateFFIMajorVersion(1))
+    func testFFIVersionValidationAcceptsCurrentAndNewerMinorABI() {
+        XCTAssertNoThrow(try XrayCore.validateFFIVersion(major: 1, minor: 1))
+        XCTAssertNoThrow(try XrayCore.validateFFIVersion(major: 1, minor: 2))
+        XCTAssertNoThrow(try XrayCore.validateFFIVersion(major: 1, minor: 4))
     }
 
-    func testFFIMajorVersionValidationRejectsIncompatibleABI() {
-        XCTAssertThrowsError(try XrayCore.validateFFIMajorVersion(2)) { error in
+    func testFFIVersionValidationRejectsIncompatibleMajorABI() {
+        XCTAssertThrowsError(try XrayCore.validateFFIVersion(major: 2, minor: 1)) { error in
             guard case let XrayCoreError.incompatibleFFIMajorVersion(expected, actual) = error else {
                 return XCTFail("unexpected error: \(error)")
             }
             XCTAssertEqual(expected, 1)
             XCTAssertEqual(actual, 2)
         }
+    }
+
+    func testFFIVersionValidationRejectsOlderMinorABI() {
+        XCTAssertThrowsError(try XrayCore.validateFFIVersion(major: 1, minor: 0)) { error in
+            guard case let XrayCoreError.incompatibleFFIMinorVersion(required, actual) = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+            XCTAssertEqual(required, 1)
+            XCTAssertEqual(actual, 0)
+        }
+    }
+
+    func testFFIInfoReportsCurrentCapabilities() {
+        let info = XrayCore.ffiInfo
+
+        XCTAssertEqual(info.version, XrayFFIVersion(major: 1, minor: 4))
+        XCTAssertTrue(info.supports(.configWarnings))
+        XCTAssertTrue(info.supports(.geodataSearch))
+        XCTAssertTrue(info.supports(.socketProtection))
+        XCTAssertTrue(info.supports(.startupProbe))
+        XCTAssertTrue(info.supports(.fileLogging))
+        XCTAssertTrue(info.supports(.tunPacketIO))
+        XCTAssertTrue(info.supports(.tunFileDescriptor))
+        XCTAssertTrue(info.supports(.tunBatchPoll))
+        XCTAssertTrue(info.supports(.tunRuntimeProfiles))
+        XCTAssertTrue(info.supports(.dnsBootstrapPolicy))
+        XCTAssertTrue(info.supports(.tunStats))
+        XCTAssertTrue(info.supports(.tunDiagnosticEvents))
+        XCTAssertTrue(info.supports(.outboundSelection))
+        XCTAssertTrue(info.supports(.outboundHealth))
+        XCTAssertTrue(info.supports(.connectionManagement))
+        XCTAssertTrue(info.supports(.routingPolicyUpdate))
+        XCTAssertFalse(info.supports(XrayFFICapabilities(rawValue: 1 << 63)))
+    }
+
+    func testRoutingPolicySnapshotDecodesVersionedWireContract() throws {
+        let json = #"{"schemaVersion":1,"revision":4,"ruleCount":12,"domainStrategy":"ipIfNonMatch"}"#
+
+        let snapshot = try JSONDecoder().decode(
+            XrayRoutingPolicySnapshot.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(snapshot.schemaVersion, 1)
+        XCTAssertEqual(snapshot.revision, 4)
+        XCTAssertEqual(snapshot.ruleCount, 12)
+        XCTAssertEqual(snapshot.domainStrategy, .ipIfNonMatch)
+    }
+
+    func testOutboundSelectionSnapshotDecodesVersionedWireContract() throws {
+        let json = #"{"schemaVersion":1,"revision":7,"groups":[{"tag":"auto","candidates":["proxy-a","proxy-b"],"overrideTag":"proxy-b"}]}"#
+
+        let snapshot = try JSONDecoder().decode(
+            XrayOutboundSelectionSnapshot.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(snapshot.schemaVersion, 1)
+        XCTAssertEqual(snapshot.revision, 7)
+        XCTAssertEqual(snapshot.groups.count, 1)
+        XCTAssertEqual(snapshot.groups[0].tag, "auto")
+        XCTAssertEqual(snapshot.groups[0].candidates, ["proxy-a", "proxy-b"])
+        XCTAssertEqual(snapshot.groups[0].overrideTag, "proxy-b")
+    }
+
+    func testOutboundHealthSnapshotDecodesRedactedWireContract() throws {
+        let json = #"{"schemaVersion":1,"revision":3,"outbounds":[{"tag":"proxy-a","state":"unhealthy","delayMs":null,"lastTryUnixMs":42,"lastSeenUnixMs":null,"consecutiveFailures":2,"lastFailureKind":"httpStatus","httpStatus":503}]}"#
+
+        let snapshot = try JSONDecoder().decode(
+            XrayOutboundHealthSnapshot.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(snapshot.schemaVersion, 1)
+        XCTAssertEqual(snapshot.revision, 3)
+        XCTAssertEqual(snapshot.outbounds.count, 1)
+        XCTAssertEqual(snapshot.outbounds[0].state, .unhealthy)
+        XCTAssertEqual(snapshot.outbounds[0].consecutiveFailures, 2)
+        XCTAssertEqual(snapshot.outbounds[0].lastFailureKind, .httpStatus)
+        XCTAssertEqual(snapshot.outbounds[0].httpStatus, 503)
+    }
+
+    func testConnectionAndAccountingSnapshotsDecodeVersionedWireContracts() throws {
+        let connections = #"{"schemaVersion":1,"revision":9,"connections":[{"id":17,"state":"active","inboundTag":"tun-in","outboundTag":"direct","network":"udp","addressType":"ip","address":"127.0.0.1","port":53,"startedUnixMs":42}]}"#
+        let accounting = #"{"schemaVersion":1,"revision":10,"outbounds":[{"outboundTag":"direct","openedConnections":3,"completedConnections":2,"hostClosedConnections":1,"uplinkBytes":64,"downlinkBytes":96}]}"#
+
+        let connectionSnapshot = try JSONDecoder().decode(
+            XrayConnectionSnapshot.self,
+            from: Data(connections.utf8)
+        )
+        XCTAssertEqual(connectionSnapshot.revision, 9)
+        XCTAssertEqual(connectionSnapshot.connections[0].id, 17)
+        XCTAssertEqual(connectionSnapshot.connections[0].state, .active)
+        XCTAssertEqual(connectionSnapshot.connections[0].network, .udp)
+        XCTAssertEqual(connectionSnapshot.connections[0].addressType, .ip)
+        XCTAssertEqual(connectionSnapshot.connections[0].port, 53)
+
+        let accountingSnapshot = try JSONDecoder().decode(
+            XrayOutboundAccountingSnapshot.self,
+            from: Data(accounting.utf8)
+        )
+        XCTAssertEqual(accountingSnapshot.revision, 10)
+        XCTAssertEqual(accountingSnapshot.outbounds[0].outboundTag, "direct")
+        XCTAssertEqual(accountingSnapshot.outbounds[0].hostClosedConnections, 1)
+        XCTAssertEqual(accountingSnapshot.outbounds[0].downlinkBytes, 96)
+    }
+
+    func testOutboundSnapshotsRejectUnknownSchemaVersions() {
+        let routing = #"{"schemaVersion":2,"revision":0,"ruleCount":0,"domainStrategy":"asIs"}"#
+        let selection = #"{"schemaVersion":2,"revision":0,"groups":[]}"#
+        let health = #"{"schemaVersion":2,"revision":0,"outbounds":[]}"#
+        let connections = #"{"schemaVersion":2,"revision":0,"connections":[]}"#
+        let accounting = #"{"schemaVersion":2,"revision":0,"outbounds":[]}"#
+
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                XrayRoutingPolicySnapshot.self,
+                from: Data(routing.utf8)
+            )
+        )
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                XrayOutboundSelectionSnapshot.self,
+                from: Data(selection.utf8)
+            )
+        )
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                XrayOutboundHealthSnapshot.self,
+                from: Data(health.utf8)
+            )
+        )
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                XrayConnectionSnapshot.self,
+                from: Data(connections.utf8)
+            )
+        )
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                XrayOutboundAccountingSnapshot.self,
+                from: Data(accounting.utf8)
+            )
+        )
     }
 
     func testLifecycleGateWaitsForAllDataPathCallsAndBlocksLateReaders() {

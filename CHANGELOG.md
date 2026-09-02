@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.5.0-rc.1 - 2026-09-02
+
+- Repinned the SDK to [`xray-rust` v0.5.0-rc.1][core-0.5.0-rc.1], adding
+  capability-gated selector, health, connection-management, structured TUN
+  diagnostics, and atomic routing-policy APIs across Swift and Kotlin.
+- The candidate includes the completed managed DoT, DoH, and local DoQ DNS
+  paths, bounded positive/negative caching with stale refresh, platform
+  resolver injection, shared outbound pools, validated chaining, and expanded
+  credential redaction and zeroization boundaries.
+- Core RC gates cover pinned Xray-core interoperability, eight ASan fuzz
+  targets, ASan/Miri/Loom hardening, exact-revision performance budgets, Linux
+  controlled-loss transport tests, Apple builds, and the four-ABI Android AAR.
+  This mobile RC remains a GitHub-only prerelease with no remote Maven
+  publication.
+
+[core-0.5.0-rc.1]: https://github.com/aimalygin/xray-rust/releases/tag/v0.5.0-rc.1
+
 ## 0.4.1-rc.4 - 2026-08-31
 
 - Repinned the SDK to the source-only [`xray-rust` v0.4.1-rc.4][core-0.4.1-rc.4]
