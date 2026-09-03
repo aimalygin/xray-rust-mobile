@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-09-03
+
+- Repinned the SDK to the stable [`xray-rust` v0.5.0][core-0.5.0] release,
+  preserving the reviewed RC1 implementation while promoting its selector,
+  health, connection-management, structured TUN diagnostics, atomic routing,
+  managed DNS, caching, pooling, and validated chaining APIs.
+- Accepted the completed Apple H2/REALITY and memory rehearsals plus Android
+  H2/H3/REALITY, transition, recovery, memory, and cancellation rehearsals as
+  the physical-device evidence for this release. The previously planned clean
+  six-hour Apple and Android campaigns were not run and are not claimed.
+- Publishes the verified XCFramework and Android AAR, the stable GitHub
+  Packages mirror, provenance metadata, and the signed Maven Central module.
+
+[core-0.5.0]: https://github.com/aimalygin/xray-rust/releases/tag/v0.5.0
+
 ## 0.5.0-rc.1 - 2026-09-02
 
 - Repinned the SDK to [`xray-rust` v0.5.0-rc.1][core-0.5.0-rc.1], adding

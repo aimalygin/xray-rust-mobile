@@ -4,6 +4,8 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
+Current stable release: [`v0.5.0`](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.5.0).
+
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
@@ -28,9 +30,9 @@ import XrayAppleTunnel
 final class PacketTunnelProvider: XrayPacketTunnelProvider {}
 ~~~
 
-The underlying core measured 3.84 MiB idle resident memory and 18.3 MiB with
-1,000 held SOCKS flows in the published synthetic localhost benchmark. See the
-[full results and methodology](https://github.com/aimalygin/xray-rust/blob/main/docs/benchmarks/results.md).
+The underlying core measured 4.2 MiB idle resident memory and 20.9 MiB with
+1,000 held SOCKS flows in the latest published synthetic localhost benchmark.
+See the [full results and methodology](https://github.com/aimalygin/xray-rust/blob/main/docs/benchmarks/results/2026-08-31-v26.7.28/README.md).
 
 This project is unofficial and is not affiliated with XTLS or Xray-core.
 
@@ -38,6 +40,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.5.0` | `v0.5.0` | `549807d621fadc618e6d0bab75f9e58ef35a7fc1` | `1` |
 | `0.4.0` | `v0.4.0` | `e1199b2176ae834259e8a2b21db468bb9db5fb17` | `1` |
 | `0.3.2` | `v0.3.2` | `850813037cd5c018348ec08b44b0b926414e17e8` | `1` |
 | `0.3.1` | `v0.3.1` | `9dba6c222ce24d347fc97fbedfedadaeb16a512c` | `1` |
@@ -65,7 +68,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.4.0"
+        exact: "0.5.0"
     ),
 ]
 ~~~
@@ -230,12 +233,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.4.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.5.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.4.0).
+available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.5.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
