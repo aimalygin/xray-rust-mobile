@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: read
     outputs:
       apple_artifact_name: ${{ steps.release.outputs.apple_artifact_name }}
@@ -57,6 +58,61 @@ jobs:
           echo "release_channel=$release_channel" >> "$GITHUB_OUTPUT"
           echo "verified_tag_object=$verified_tag_object" >> "$GITHUB_OUTPUT"
           echo "verified_commit=$verified_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Apple artifact producer provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify-apple-artifact-run.sh
+
+      - name: Verify matching core v0.6 release evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source release/version.env
+          if [[ "$XRAY_MOBILE_VERSION" == 0.6.* ]]; then
+            scripts/verify-core-release-evidence-run.sh
+          fi
+
+      - name: Authenticate Gradle artifacts against canonical repositories
+        run: |
+          python3 scripts/check-gradle-verification.py --online \
+            android/gradle/verification-metadata.xml
+          python3 scripts/check-gradle-verification.py --online \
+            --allow-local-trust io.github.aimalygin:xray-rust-mobile \
+            smoke/android/gradle/verification-metadata.xml
+
+  secrets:
+    needs: metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out complete history at verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.metadata.outputs.verified_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install checksum-verified Gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl --fail --location --silent --show-error \
+            --proto '=https' --tlsv1.2 --retry 3 \
+            --output "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${archive}" | sha256sum --check -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          chmod 0755 "$RUNNER_TEMP/gitleaks"
+
+      - name: Scan complete Git history for common secrets
+        run: |
+          "$RUNNER_TEMP/gitleaks" git --config .gitleaks.toml \
+            --redact=100 --no-banner --log-opts="--all" .
 
   apple-source:
     needs: metadata
@@ -215,7 +271,7 @@ jobs:
           overwrite: true
 
   draft-release:
-    needs: [metadata, apple-source, apple-asset, android-build]
+    needs: [metadata, secrets, apple-source, apple-asset, android-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

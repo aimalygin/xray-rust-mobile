@@ -94,8 +94,8 @@ verify_core_checkout() {
     die "core module map checksum differs from release/core.env"
 
   if [[ "${XRAY_ALLOW_DIRTY_UPSTREAM:-0}" != "1" ]] &&
-    [[ -n "$(git -C "$checkout" status --porcelain --untracked-files=no)" ]]; then
-    die "core checkout has tracked changes; set XRAY_ALLOW_DIRTY_UPSTREAM=1 only for local experiments"
+    [[ -n "$(git -C "$checkout" status --porcelain --untracked-files=all)" ]]; then
+    die "core checkout has tracked or untracked changes; set XRAY_ALLOW_DIRTY_UPSTREAM=1 only for local experiments"
   fi
 }
 

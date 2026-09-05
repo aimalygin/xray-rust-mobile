@@ -1,0 +1,4 @@
+title = "xray-rust-mobile secret scanning"
+
+[extend]
+useDefault = true

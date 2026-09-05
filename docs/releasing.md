@@ -75,7 +75,10 @@ version that has already reached `PUBLISHED`.
 2. For a version whose Apple archive is not prepared yet, set both the
    `Package.swift` checksum and `APPLE_XCFRAMEWORK_SHA256` to 64 zeroes, set
    `APPLE_ARTIFACT_RUN_ID=0`, and use
-   `APPLE_ARTIFACT_NAME=apple-release-v<version>-unprepared`.
+   `APPLE_ARTIFACT_NAME=apple-release-v<version>-unprepared`. Set
+   `APPLE_ARTIFACT_SOURCE_COMMIT` and `APPLE_ARTIFACT_SOURCE_TREE` to 40
+   zeroes. The prepare workflow replaces them with the exact source revision
+   and tree used to build the Apple archive.
 3. Run `scripts/check-release.sh --prepare`.
 4. Optionally run `scripts/prepare-release.sh <version>` on a provisioned macOS
    host. This is a local reproducibility preflight only; it does not update or
@@ -104,7 +107,10 @@ git push origin "v${version}"
 The tag workflow:
 
 - verifies the annotated tag, mobile version, exact core tag/commit/tree/file
-  hashes, and adapter snapshots;
+  hashes, adapter snapshots, and the Apple producer job/source commit/tree;
+- for every `0.6.x` release, requires the successful, non-expired core
+  `v0.6 release evidence` run and retained artifact for that exact locked core
+  commit and tree;
 - rebuilds the Swift test XCFramework and runs all Swift tests;
 - verifies the locked iOS, tvOS, and macOS SwiftPM ZIP and requires its
   checksum to match the prepared lock;
