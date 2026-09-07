@@ -53,6 +53,7 @@ fi
 "$MOBILE_ROOT/android/gradlew" \
   -p "$MOBILE_ROOT/android" \
   "${tasks[@]}" \
+  --dependency-verification strict \
   --no-daemon
 
 aar="$MOBILE_ROOT/android/xraymobile/build/outputs/aar/xraymobile-release.aar"

@@ -83,7 +83,9 @@ ${release_fields}  "mobileVersion": "$XRAY_MOBILE_VERSION",
   },
   "appleWorkflowArtifact": {
     "runId": $APPLE_ARTIFACT_RUN_ID,
-    "name": "$APPLE_ARTIFACT_NAME"
+    "name": "$APPLE_ARTIFACT_NAME",
+    "sourceCommit": "$APPLE_ARTIFACT_SOURCE_COMMIT",
+    "sourceTree": "$APPLE_ARTIFACT_SOURCE_TREE"
   },
   "artifacts": {
 $artifact_fields

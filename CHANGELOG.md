@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.6.0-rc.1 - 2026-09-07
+
+- Pins the SDK to the exact xray-rust v0.6.0-rc.1 core candidate, adding
+  bounded VLESS encryption, lazy IPOnDemand routing and independent XHTTP
+  download carriers. The core also provides the supported-configuration
+  contract and parser-backed configuration tooling.
+- Synchronizes Swift and Kotlin encrypted VLESS URL imports and IPOnDemand
+  routing snapshot decoding. The public C ABI remains version 1.
+- Bounded physical campaigns passed all five required v0.6 scenarios on
+  iPhone 13 / iOS 18.6.2 and Samsung SM-A145F / Android 15, with explicit
+  resource limits and five fresh samples for each performance metric.
+  Long soak tests were omitted by owner decision. These results do not
+  claim six-hour, WAN, network-switch, sleep/wake or process-death coverage.
+- This candidate is distributed through GitHub prereleases as a verified
+  XCFramework and standalone AAR, with checksums and provenance metadata.
+  It is not published to Maven Central or GitHub Packages.
+
+Evidence: https://github.com/aimalygin/xray-rust/tree/278d4d2324a689815641ec2d13acdc8e0244ec28
+
 ## 0.5.0 - 2026-09-03
 
 - Repinned the SDK to the stable [`xray-rust` v0.5.0][core-0.5.0] release,

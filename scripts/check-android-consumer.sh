@@ -22,6 +22,7 @@ export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$MOBILE_ROOT/.build/android/gradle-
 "$MOBILE_ROOT/android/gradlew" \
   -p "$MOBILE_ROOT/smoke/android" \
   :consumer:assembleRelease \
+  --dependency-verification strict \
   --no-daemon
 
 manifest="$(

@@ -45,13 +45,16 @@ compare_tree \
   "$MOBILE_ROOT/Sources/XrayKernelControl"
 compare_tree \
   "$core/platform/apple/Tests/XrayMobileAdapterTests" \
-  "$MOBILE_ROOT/Tests/XrayMobileAdapterTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayMobileAdapterTests"
 compare_tree \
   "$core/platform/apple/Tests/XrayAppleSharedTests" \
-  "$MOBILE_ROOT/Tests/XrayAppleSharedTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayAppleSharedTests"
 compare_tree \
   "$core/platform/apple/Tests/XrayAppleTunnelTests" \
-  "$MOBILE_ROOT/Tests/XrayAppleTunnelTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayAppleTunnelTests"
+compare_file \
+  "$core/tests/fixtures/vless-encryption/imports.json" \
+  "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
 compare_tree \
   "$core/platform/android/xraymobile/src/main/java" \
   "$MOBILE_ROOT/android/xraymobile/src/main/java"

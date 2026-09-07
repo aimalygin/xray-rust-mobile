@@ -16,6 +16,8 @@ artifact_name="${3:-}"
   die "invalid Apple workflow artifact name: $artifact_name"
 
 checksum="$(sha256_file "$archive")"
+source_commit="$(git -C "$MOBILE_ROOT" rev-parse HEAD)"
+source_tree="$(git -C "$MOBILE_ROOT" rev-parse 'HEAD^{tree}')"
 package_checksum="$(
   awk -F'"' '/^let releaseChecksum = / {print $2}' "$MOBILE_ROOT/Package.swift"
 )"
@@ -28,6 +30,8 @@ cat >"$temporary" <<LOCK
 APPLE_ARTIFACT_RUN_ID=$run_id
 APPLE_ARTIFACT_NAME=$artifact_name
 APPLE_XCFRAMEWORK_SHA256=$checksum
+APPLE_ARTIFACT_SOURCE_COMMIT=$source_commit
+APPLE_ARTIFACT_SOURCE_TREE=$source_tree
 LOCK
 chmod 0644 "$temporary"
 mv "$temporary" "$MOBILE_ROOT/release/artifacts.env"

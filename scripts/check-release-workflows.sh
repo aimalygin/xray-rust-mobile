@@ -84,11 +84,35 @@ if "$SCRIPT_DIR/release-channel.sh" --require-stable v0.4.1-rc.1 >/dev/null 2>&1
 fi
 
 release_workflow="$MOBILE_ROOT/.github/workflows/release.yml"
+ci_workflow="$MOBILE_ROOT/.github/workflows/ci.yml"
 prepare_workflow="$MOBILE_ROOT/.github/workflows/prepare-release.yml"
 central_workflow="$MOBILE_ROOT/.github/workflows/publish-maven-central.yml"
 manifest_script="$MOBILE_ROOT/scripts/write-release-manifest.sh"
 prepare_script="$MOBILE_ROOT/scripts/prepare-release.sh"
 tag_verifier="$MOBILE_ROOT/scripts/verify-github-release-tag.sh"
+
+for workflow in "$ci_workflow" "$release_workflow"; do
+  require_text "$workflow" \
+    'GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' \
+    "$(basename "$workflow") does not pin the Gitleaks archive checksum"
+  require_text "$workflow" \
+    'fetch-depth: 0' \
+    "$(basename "$workflow") secret scan does not fetch complete history"
+  require_text "$workflow" \
+    '--log-opts="--all"' \
+    "$(basename "$workflow") secret scan does not scan complete history"
+done
+require_text "$release_workflow" \
+  'needs: [metadata, secrets, apple-source, apple-asset, android-build]' \
+  "release publication is not blocked on the secret scan"
+for workflow in "$ci_workflow" "$release_workflow"; do
+  require_text "$workflow" \
+    'python3 scripts/check-gradle-verification.py --online' \
+    "$(basename "$workflow") does not authenticate Gradle locks against canonical repositories"
+  require_text "$workflow" \
+    '--allow-local-trust io.github.aimalygin:xray-rust-mobile' \
+    "$(basename "$workflow") does not scope the smoke-build local trust exception"
+done
 
 require_text "$release_workflow" \
   "release_channel: \${{ steps.release.outputs.release_channel }}" \
@@ -143,6 +167,24 @@ require_block_text "$metadata_job" \
 require_block_text "$metadata_job" \
   'verified_commit="$(git rev-parse "$tag_ref^{commit}")"' \
   "release metadata does not record the peeled tag commit"
+require_block_text "$metadata_job" \
+  'if [[ "$XRAY_MOBILE_VERSION" == 0.6.* ]]; then' \
+  "v0.6 mobile publication is not conditionally bound to core release evidence"
+require_block_text "$metadata_job" \
+  'scripts/verify-core-release-evidence-run.sh' \
+  "v0.6 mobile publication does not verify the matching core evidence run"
+
+core_evidence_verifier="$MOBILE_ROOT/scripts/verify-core-release-evidence-run.sh"
+for required in \
+  'actions/workflows/v06-release-evidence.yml' \
+  'event=workflow_dispatch&status=success&head_sha=$XRAY_RUST_COMMIT' \
+  '.head_commit.tree_id' \
+  '.head_repository.full_name' \
+  'v06-release-evidence-$XRAY_RUST_COMMIT' \
+  '.expired == false'; do
+  require_text "$core_evidence_verifier" "$required" \
+    "core v0.6 evidence verifier is missing required binding: $required"
+done
 
 for job in apple-source apple-asset android-build draft-release maven-publish finalize-release; do
   block="$(extract_job "$release_workflow" "$job")"
@@ -173,6 +215,12 @@ require_block_order "$finalize_job" \
   "release finalization is not preceded by live tag validation"
 
 checksum_pr_job="$(extract_job "$prepare_workflow" checksum-pr)"
+for job in apple-artifact checksum-pr; do
+  block="$(extract_job "$prepare_workflow" "$job")"
+  require_block_text "$block" \
+    'scripts/check-release.sh --generated' \
+    "$job does not validate generated locks against the exact build source"
+done
 require_block_order "$checksum_pr_job" \
   'git push origin "$branch"' \
   'gh pr create' \

@@ -10,6 +10,9 @@ native_dir="${2:-$MOBILE_ROOT/.build/android/native}"
 [[ -f "$aar" ]] || die "usage: $0 <aar> [native-dir]"
 
 require_command cmp
+require_command diff
+require_command python3
+require_command sort
 require_command unzip
 
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
@@ -40,6 +43,7 @@ for host in "${host_candidates[@]}"; do
 done
 [[ -x "$readelf" ]] || die "NDK llvm-readelf not found under $ndk"
 
+python3 "$SCRIPT_DIR/verify-aar-surface.py" "$aar"
 unzip -tqq "$aar"
 entries="$(unzip -Z1 "$aar")"
 temporary="$(mktemp -d "$MOBILE_ROOT/.build/android-aar.XXXXXX")"
@@ -58,18 +62,38 @@ verify_alignment() {
   (( saw_load == 1 )) || die "ELF has no LOAD segment: $library"
 }
 
-manifest="$temporary/AndroidManifest.xml"
-unzip -p "$aar" AndroidManifest.xml >"$manifest"
-grep -Fq "android.permission.INTERNET" "$manifest" ||
-  die "AAR manifest is missing INTERNET"
-grep -Fq "android.permission.FOREGROUND_SERVICE" "$manifest" ||
-  die "AAR manifest is missing FOREGROUND_SERVICE"
-if grep -Fq "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" "$manifest"; then
-  die "AAR must leave the target-SDK-specific foreground-service permission to the host"
-fi
-if grep -Fq "org.xrayrust.mobile.XrayVpnService" "$manifest"; then
-  die "AAR must not register the base XrayVpnService; the host must register its subclass"
-fi
+verify_dependencies() {
+  local library="$1"
+  local needed
+  local saw_xray_ffi=0
+  while IFS= read -r needed; do
+    case "$(basename "$library"):$needed" in
+      *libxray_ffi.so:libc.so|*libxray_ffi.so:libdl.so|*libxray_ffi.so:liblog.so|*libxray_ffi.so:libm.so) ;;
+      *libxray_mobile_jni.so:libc.so|*libxray_mobile_jni.so:libdl.so|*libxray_mobile_jni.so:liblog.so|*libxray_mobile_jni.so:libm.so) ;;
+      *libxray_mobile_jni.so:libxray_ffi.so) saw_xray_ffi=1 ;;
+      *) die "ELF has an unexpected runtime dependency: $library ($needed)" ;;
+    esac
+  done < <("$readelf" -d "$library" | awk -F'[][]' '/NEEDED/ {print $2}')
+  if [[ "$(basename "$library")" == *libxray_mobile_jni.so ]] && (( saw_xray_ffi == 0 )); then
+    die "JNI library does not depend on libxray_ffi.so: $library"
+  fi
+}
+
+write_exports() {
+  local library="$1"
+  local output="$2"
+  "$readelf" --dyn-syms --wide "$library" |
+    awk '$7 != "UND" && ($5 == "GLOBAL" || $5 == "WEAK") { name=$8; sub(/@.*/, "", name); print name }' |
+    sort -u >"$output"
+}
+
+expected_ffi_exports="$temporary/expected-ffi-exports.txt"
+expected_jni_exports="$temporary/expected-jni-exports.txt"
+grep -Eo 'xray_[a-z0-9_]+\(' "$native_dir/include/xray_ffi.h" |
+  sed 's/($//' | sort -u >"$expected_ffi_exports"
+sort -u "$MOBILE_ROOT/release/android-jni-exports.txt" >"$expected_jni_exports"
+[[ -s "$expected_ffi_exports" && -s "$expected_jni_exports" ]] ||
+  die "native export allowlist is empty"
 
 for abi in arm64-v8a armeabi-v7a x86 x86_64; do
   for library in libxray_ffi.so libxray_mobile_jni.so; do
@@ -78,17 +102,19 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
     extracted="$temporary/$abi-$library"
     unzip -p "$aar" "$entry" >"$extracted"
     verify_alignment "$extracted"
+    verify_dependencies "$extracted"
+
+    actual_exports="$temporary/$abi-$library.exports"
+    write_exports "$extracted" "$actual_exports"
 
     if [[ "$library" == "libxray_ffi.so" ]]; then
       cmp "$native_dir/jniLibs/$abi/$library" "$extracted" ||
         die "AAR Rust library differs from the locked native artifact: $abi"
+      diff -u "$expected_ffi_exports" "$actual_exports" ||
+        die "Rust FFI export surface differs from its locked header: $abi"
     else
-      needed="$("$readelf" -d "$extracted" | awk -F'[][]' '/NEEDED/ {print $2}')"
-      grep -Fxq "libxray_ffi.so" <<<"$needed" ||
-        die "JNI library does not load libxray_ffi.so by soname: $abi"
-      if grep -Eq '^/|libc\+\+_shared\.so' <<<"$needed"; then
-        die "JNI library has a forbidden runtime dependency: $abi"
-      fi
+      diff -u "$expected_jni_exports" "$actual_exports" ||
+        die "JNI export surface differs from the release allowlist: $abi"
     fi
   done
 done

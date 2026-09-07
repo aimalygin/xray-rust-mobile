@@ -32,13 +32,18 @@ sync_tree \
   "$MOBILE_ROOT/Sources/XrayKernelControl"
 sync_tree \
   "$core/platform/apple/Tests/XrayMobileAdapterTests" \
-  "$MOBILE_ROOT/Tests/XrayMobileAdapterTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayMobileAdapterTests"
 sync_tree \
   "$core/platform/apple/Tests/XrayAppleSharedTests" \
-  "$MOBILE_ROOT/Tests/XrayAppleSharedTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayAppleSharedTests"
 sync_tree \
   "$core/platform/apple/Tests/XrayAppleTunnelTests" \
-  "$MOBILE_ROOT/Tests/XrayAppleTunnelTests"
+  "$MOBILE_ROOT/platform/apple/Tests/XrayAppleTunnelTests"
+# Keep the upstream test layout: Swift resolves this shared fixture relative
+# to #filePath; Kotlin searches repository ancestors for the same path.
+mkdir -p "$MOBILE_ROOT/tests/fixtures/vless-encryption"
+cp "$core/tests/fixtures/vless-encryption/imports.json" \
+  "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
 sync_tree \
   "$core/platform/android/xraymobile/src/main/java" \
   "$MOBILE_ROOT/android/xraymobile/src/main/java"
