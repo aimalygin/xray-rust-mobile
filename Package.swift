@@ -74,18 +74,21 @@ let package = Package(
         ),
         .testTarget(
             name: "XrayAppleSharedTests",
-            dependencies: ["XrayAppleShared"]
+            dependencies: ["XrayAppleShared"],
+            path: "platform/apple/Tests/XrayAppleSharedTests"
         ),
         .testTarget(
             name: "XrayMobileAdapterTests",
             dependencies: [
                 "XrayMobileAdapter",
                 "XrayKernelControl",
-            ]
+            ],
+            path: "platform/apple/Tests/XrayMobileAdapterTests"
         ),
         .testTarget(
             name: "XrayAppleTunnelTests",
-            dependencies: ["XrayAppleTunnel"]
+            dependencies: ["XrayAppleTunnel"],
+            path: "platform/apple/Tests/XrayAppleTunnelTests"
         ),
     ]
 )
