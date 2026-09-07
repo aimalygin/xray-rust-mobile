@@ -215,6 +215,12 @@ require_block_order "$finalize_job" \
   "release finalization is not preceded by live tag validation"
 
 checksum_pr_job="$(extract_job "$prepare_workflow" checksum-pr)"
+for job in apple-artifact checksum-pr; do
+  block="$(extract_job "$prepare_workflow" "$job")"
+  require_block_text "$block" \
+    'scripts/check-release.sh --generated' \
+    "$job does not validate generated locks against the exact build source"
+done
 require_block_order "$checksum_pr_job" \
   'git push origin "$branch"' \
   'gh pr create' \

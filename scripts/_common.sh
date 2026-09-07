@@ -27,6 +27,42 @@ sha256_file() {
   shasum -a 256 "$1" | awk '{print $1}'
 }
 
+verify_apple_artifact_source() {
+  local checkout="$1" source_commit="$2" source_tree="$3" mode="$4"
+  local head_commit metadata_delta indexed_path
+  [[ "$(git -C "$checkout" rev-parse "$source_commit^{tree}" 2>/dev/null || true)" == \
+    "$source_tree" ]] || die "Apple artifact source commit/tree is unavailable or differs"
+  head_commit="$(git -C "$checkout" rev-parse HEAD)"
+  git -C "$checkout" merge-base --is-ancestor "$source_commit" "$head_commit" ||
+    die "Apple artifact source is not an ancestor of the release commit"
+
+  case "$mode" in
+    generated)
+      # Preparation has generated the two locks but has not committed them yet.
+      # Require the exact build source; a concurrently advanced main must fail.
+      [[ "$head_commit" == "$source_commit" ]] ||
+        die "generated Apple locks require the exact artifact source checkout"
+      [[ -z "$(git -C "$checkout" ls-files --others --exclude-standard)" ]] ||
+        die "generated Apple locks cannot include untracked build inputs"
+      while IFS= read -r indexed_path; do
+        case "$indexed_path" in
+          ''|Package.swift|release/artifacts.env) ;;
+          *) die "generated Apple locks cannot include staged build inputs" ;;
+        esac
+      done < <(git -C "$checkout" diff --cached --name-only)
+      metadata_delta="$(git -C "$checkout" diff --name-only "$source_commit" --)"
+      ;;
+    strict)
+      [[ -z "$(git -C "$checkout" status --porcelain --untracked-files=normal)" ]] ||
+        die "strict release validation requires a clean Git worktree"
+      metadata_delta="$(git -C "$checkout" diff --name-only "$source_commit..$head_commit" --)"
+      ;;
+    *) die "unsupported Apple artifact source validation mode: $mode" ;;
+  esac
+  [[ "$metadata_delta" == $'Package.swift\nrelease/artifacts.env' ]] ||
+    die "release content differs from Apple artifact source outside the two lock files"
+}
+
 # Locates the llvm-objcopy that ships with the pinned Rust toolchain. Xcode has
 # no objcopy, and its own bitcode_strip is a wrapper over the linker's
 # -bitcode_strip flag, which Apple removed in Xcode 15.

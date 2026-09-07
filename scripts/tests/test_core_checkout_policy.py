@@ -8,20 +8,30 @@ from pathlib import Path
 
 MOBILE_ROOT = Path(__file__).resolve().parents[2]
 COMMON = MOBILE_ROOT / "scripts" / "_common.sh"
-CORE_SOURCE = MOBILE_ROOT.parent / "xray-rust"
 
 
 class CoreCheckoutPolicyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.core_source = subprocess.check_output(
+            ["bash", "-c", 'source "$1"; resolve_core_checkout', "resolve-core", str(COMMON)],
+            text=True,
+        ).strip()
+        cls.core_tag = subprocess.check_output(
+            ["bash", "-c", 'source "$1"; printf "%s" "$XRAY_RUST_TAG"', "core-tag", str(COMMON)],
+            text=True,
+        ).strip()
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.checkout = Path(self.temporary.name) / "core"
         subprocess.run(
-            ["git", "clone", "--quiet", "--shared", str(CORE_SOURCE), str(self.checkout)],
+            ["git", "clone", "--quiet", "--shared", self.core_source, str(self.checkout)],
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(self.checkout), "checkout", "--quiet", "v0.5.0"],
+            ["git", "-C", str(self.checkout), "checkout", "--quiet", self.core_tag],
             check=True,
         )
 

@@ -65,7 +65,7 @@ jobs:
             "$archive" \
             "apple-release-v$XRAY_MOBILE_VERSION"
           scripts/verify-apple-archive.sh "$archive"
-          scripts/check-release.sh
+          scripts/check-release.sh --generated
 
       - name: Upload exact release artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -109,7 +109,7 @@ jobs:
           path: .
 
       - name: Verify generated metadata
-        run: scripts/check-release.sh
+        run: scripts/check-release.sh --generated
 
       - name: Open checksum pull request
         env:

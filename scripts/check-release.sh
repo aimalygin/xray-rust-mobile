@@ -6,13 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
 
 mode="strict"
-if [[ "${1:-}" == "--prepare" ]]; then
-  mode="prepare"
-  shift
-fi
+case "${1:-}" in
+  --prepare) mode="prepare"; shift ;;
+  --generated) mode="generated"; shift ;;
+esac
 
 tag="${1:-}"
-[[ "$#" -le 1 ]] || die "usage: $0 [--prepare] [v$XRAY_MOBILE_VERSION]"
+[[ "$#" -le 1 ]] || die "usage: $0 [--prepare | --generated] [v$XRAY_MOBILE_VERSION]"
+[[ -z "$tag" || "$mode" == "strict" ]] ||
+  die "release tags require strict committed-source validation"
 release_channel="$("$SCRIPT_DIR/release-channel.sh" "$XRAY_MOBILE_VERSION")"
 if [[ -n "$tag" && "$tag" != "v$XRAY_MOBILE_VERSION" ]]; then
   die "release tag $tag does not match v$XRAY_MOBILE_VERSION"
@@ -84,7 +86,7 @@ fi
   die "Apple artifact source commit is invalid"
 [[ "$APPLE_ARTIFACT_SOURCE_TREE" =~ ^[0-9a-f]{40}$ ]] ||
   die "Apple artifact source tree is invalid"
-if [[ "$mode" == "strict" ]]; then
+if [[ "$mode" != "prepare" ]]; then
   [[ "$checksum" != "0000000000000000000000000000000000000000000000000000000000000000" ]] ||
     die "Package.swift still contains a placeholder checksum"
   [[ "$APPLE_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]] ||
@@ -93,19 +95,8 @@ if [[ "$mode" == "strict" ]]; then
     die "strict release validation requires the Apple artifact source commit"
   [[ "$APPLE_ARTIFACT_SOURCE_TREE" != "0000000000000000000000000000000000000000" ]] ||
     die "strict release validation requires the Apple artifact source tree"
-  [[ "$(git -C "$MOBILE_ROOT" rev-parse "$APPLE_ARTIFACT_SOURCE_COMMIT^{tree}" 2>/dev/null || true)" == \
-    "$APPLE_ARTIFACT_SOURCE_TREE" ]] ||
-    die "Apple artifact source commit/tree is unavailable or differs"
-  release_commit="$(git -C "$MOBILE_ROOT" rev-parse HEAD)"
-  git -C "$MOBILE_ROOT" merge-base --is-ancestor \
-    "$APPLE_ARTIFACT_SOURCE_COMMIT" "$release_commit" ||
-    die "Apple artifact source is not an ancestor of the release commit"
-  metadata_delta="$(
-    git -C "$MOBILE_ROOT" diff --name-only \
-      "$APPLE_ARTIFACT_SOURCE_COMMIT..$release_commit"
-  )"
-  [[ "$metadata_delta" == $'Package.swift\nrelease/artifacts.env' ]] ||
-    die "release commit differs from Apple artifact source outside the two lock files"
+  verify_apple_artifact_source "$MOBILE_ROOT" \
+    "$APPLE_ARTIFACT_SOURCE_COMMIT" "$APPLE_ARTIFACT_SOURCE_TREE" "$mode"
 fi
 
 grep -Fq "compileSdk = $ANDROID_COMPILE_SDK" \
