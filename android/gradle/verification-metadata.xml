@@ -138,6 +138,17 @@
             <sha256 value="d5a83939370a74cba67e60df6cf1a73f77302562c26b131b26291cd805ff8b2f" origin="Canonical Maven repository (published sidecar verified)"/>
          </artifact>
       </component>
+      <component group="com.android.tools.build" name="aapt2" version="8.7.3-12006047">
+         <artifact name="aapt2-8.7.3-12006047-linux.jar">
+            <sha256 value="028916a040b58f34c9c89984e1bc48f8da6581662014f2b66391860def8b9c36" origin="Canonical Maven repository (published sidecar verified)"/>
+         </artifact>
+         <artifact name="aapt2-8.7.3-12006047-osx.jar">
+            <sha256 value="8cfca8d3fcb8ad45cf46e3780cdd4a64cb38c70ca45b442655de9f3e7d19efc1" origin="Canonical Maven repository (published sidecar verified)"/>
+         </artifact>
+         <artifact name="aapt2-8.7.3-12006047.pom">
+            <sha256 value="a8e9619d38e53a2ab28848ac5a20faac0ed751d224a8a2523664ec9987f13f0f" origin="Canonical Maven repository (published sidecar verified)"/>
+         </artifact>
+      </component>
       <component group="com.android.tools.build" name="aapt2-proto" version="8.7.3-12006047">
          <artifact name="aapt2-proto-8.7.3-12006047.jar">
             <sha256 value="b32f7d4b2975ac9ee7f06054c18f1fea9da045dc1a61ff436ecf543480036302" origin="Canonical Maven repository (published sidecar verified)"/>
