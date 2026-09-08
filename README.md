@@ -4,7 +4,9 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-Current stable release: [`v0.5.0`](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.5.0).
+Stable SDK version: [`v0.6.0`](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.6.0).
+The owner confirmed real-app checks on the matching RC before promotion;
+see [the promotion record](https://github.com/aimalygin/xray-rust/blob/main/docs/v06-stable-promotion.md).
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -40,6 +42,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.6.0` | `v0.6.0` | `a6b67f0e0608eb0e67c81a188eeb7f7fe3b45dab` | `1` |
 | `0.6.0-rc.1` (candidate) | `v0.6.0-rc.1` | `1e713ca3e6c57be5747b4915b31e0db040a01c0c` | `1` |
 | `0.5.0` | `v0.5.0` | `549807d621fadc618e6d0bab75f9e58ef35a7fc1` | `1` |
 | `0.4.0` | `v0.4.0` | `e1199b2176ae834259e8a2b21db468bb9db5fb17` | `1` |
@@ -69,7 +72,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.5.0"
+        exact: "0.6.0"
     ),
 ]
 ~~~
@@ -234,12 +237,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.5.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.6.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.5.0).
+available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.6.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading

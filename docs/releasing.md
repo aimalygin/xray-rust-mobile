@@ -110,7 +110,10 @@ The tag workflow:
   hashes, adapter snapshots, and the Apple producer job/source commit/tree;
 - for every `0.6.x` release, requires the successful, non-expired core
   `v0.6 release evidence` run and retained artifact for that exact locked core
-  commit and tree;
+  commit and tree. For stable `0.6.0`, the core workflow validates the original
+  RC archive plus the stable promotion source delta; it preserves the measured
+  RC identity and does not claim a new physical-device run. Long device soak
+  campaigns are excluded from the current release checklist by owner decision;
 - rebuilds the Swift test XCFramework and runs all Swift tests;
 - verifies the locked iOS, tvOS, and macOS SwiftPM ZIP and requires its
   checksum to match the prepared lock;
