@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.6.0 - 2026-09-08
+
+- Promotes the completed v0.6 RC scope to stable: bounded VLESS encryption,
+  lazy IPOnDemand routing, independent XHTTP downloads and the supported
+  configuration contract. Pins the stable core with exact tag, commit, tree
+  and source hashes; the runtime, adapters and C ABI are unchanged from RC1.
+- Records owner-confirmed profile import, connect, disconnect and reconnect
+  in a real application on 2026-09-08. The published bounded iPhone 13 and
+  Samsung campaigns retain their original RC provenance. Long device soak
+  campaigns are removed from the current checklist and are not claimed.
+- Prepares fresh canonical Apple and Android stable artifacts and final
+  automated verification, GitHub releases/Packages and signed Maven Central
+  distribution. Public consumer checks follow publication.
+
+Stable preparation and evidence boundary:
+https://github.com/aimalygin/xray-rust/blob/main/docs/v06-stable-promotion.md
+
 ## 0.6.0-rc.1 - 2026-09-07
 
 - Pins the SDK to the exact xray-rust v0.6.0-rc.1 core candidate, adding
