@@ -42,7 +42,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.6.0` | `v0.6.0` | `a6b67f0e0608eb0e67c81a188eeb7f7fe3b45dab` | `1` |
+| `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
 | `0.6.0-rc.1` (candidate) | `v0.6.0-rc.1` | `1e713ca3e6c57be5747b4915b31e0db040a01c0c` | `1` |
 | `0.5.0` | `v0.5.0` | `549807d621fadc618e6d0bab75f9e58ef35a7fc1` | `1` |
 | `0.4.0` | `v0.4.0` | `e1199b2176ae834259e8a2b21db468bb9db5fb17` | `1` |
