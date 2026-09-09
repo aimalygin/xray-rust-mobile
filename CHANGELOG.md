@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.6.1-rc.1 - 2026-09-09
+
+- Pins the exact v0.6.1-rc.1 core tag, commit, tree and source hashes.
+  XHTTP/H2 defaults to a 4 MiB stream receive window with a bounded optional
+  override. Stalled TUN downloads no longer block neighboring data or
+  control events; bounded prefetch preserves cancellation and DNS/FIN ordering.
+- The Swift/Kotlin adapters, public C ABI and dependency identities are
+  unchanged. Fresh physical iPhone 13 and Samsung SM-A145F campaigns passed
+  all five required feature scenarios on the pinned candidate. Both Android
+  FileDescriptor and PacketPump paths passed; calibrated performance gates
+  passed with five feature samples each.
+- This RC uses GitHub prereleases for the verified XCFramework and standalone
+  AAR, checksums and provenance. Maven Central and GitHub Packages publication
+  remain disabled for release candidates.
+
+Evidence: https://github.com/aimalygin/xray-rust/tree/d746d492152240382da84a4715e67c0b704b9eee
+Validation: https://github.com/aimalygin/xray-rust/actions/runs/34364249062
+
 ## 0.6.0 - 2026-09-08
 
 - Promotes the completed v0.6 RC scope to stable: bounded VLESS encryption,
