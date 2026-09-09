@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.1 - 2026-09-09
+
+- Promotes the tested 0.6.1-rc.1 SDK to stable with no changes to the runtime,
+  Swift/Kotlin adapters, public C ABI or dependencies.
+- Preserves the exact core v0.6.1-rc.1 tag and commit
+  `1231add417a4e2e6aa4c9e51c13487d493498a1d` and the RC verification evidence.
+- Updates SDK version and distribution metadata for canonical Apple and
+  Android stable artifacts, GitHub Packages and signed Maven Central publication.
+
 ## 0.6.1-rc.1 - 2026-09-09
 
 - Pins the exact v0.6.1-rc.1 core tag, commit, tree and source hashes.
