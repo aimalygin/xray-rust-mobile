@@ -64,14 +64,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/verify-apple-artifact-run.sh
 
-      - name: Verify matching core v0.6 release evidence
+      - name: Verify matching versioned core release evidence
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          source release/version.env
-          if [[ "$XRAY_MOBILE_VERSION" == 0.6.* ]]; then
-            scripts/verify-core-release-evidence-run.sh
-          fi
+        run: scripts/verify-core-release-evidence-run.sh
 
       - name: Authenticate Gradle artifacts against canonical repositories
         run: |

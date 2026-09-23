@@ -37,6 +37,8 @@ jobs:
           source release/version.env
           scripts/release-channel.sh "$REQUESTED_VERSION"
           test "$REQUESTED_VERSION" = "$XRAY_MOBILE_VERSION"
+          source scripts/_common.sh
+          require_tagged_core
           scripts/check-release.sh --prepare
 
       - name: Install locked Rust toolchain
