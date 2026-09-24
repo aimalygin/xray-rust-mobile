@@ -129,10 +129,10 @@ THE SOFTWARE.
 - Project: [Mullvad GotaTun](https://github.com/mullvad/gotatun)
 - Version: 0.9.1, commit `dab390cdf9dcfb7a6fa85dd8798db92b681ad296`.
 - License: MPL-2.0, with retained upstream BSD notices.
-- Complete notices: [LICENSE](https://github.com/aimalygin/xray-rust/blob/ee7048a88e77c6be450de886b93b4c0e5954d13e/vendor/gotatun/LICENSE) and
-  [LICENSE-CLOUDFLARE](https://github.com/aimalygin/xray-rust/blob/ee7048a88e77c6be450de886b93b4c0e5954d13e/vendor/gotatun/LICENSE-CLOUDFLARE).
+- Complete notices: [LICENSE](https://github.com/aimalygin/xray-rust/blob/353316687b22c2fabbaf37ab5668dda05a972f46/vendor/gotatun/LICENSE) and
+  [LICENSE-CLOUDFLARE](https://github.com/aimalygin/xray-rust/blob/353316687b22c2fabbaf37ab5668dda05a972f46/vendor/gotatun/LICENSE-CLOUDFLARE).
 - Modified source and reproducible patch:
-  [provenance](https://github.com/aimalygin/xray-rust/blob/ee7048a88e77c6be450de886b93b4c0e5954d13e/vendor/gotatun/XRAY-PATCH.md).
+  [provenance](https://github.com/aimalygin/xray-rust/blob/353316687b22c2fabbaf37ab5668dda05a972f46/vendor/gotatun/XRAY-PATCH.md).
 
 The vendored engine adds bounded resource ownership for the WireGuard client.
 It is built with the `ring` and `device` features. The complete covered source,
