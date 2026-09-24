@@ -9,6 +9,9 @@ MOBILE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$MOBILE_ROOT/release/version.env"
 # shellcheck disable=SC1091
 source "$MOBILE_ROOT/release/core.env"
+XRAY_RUST_REF_KIND="${XRAY_RUST_REF_KIND:-tag}"
+XRAY_RUST_TAG="${XRAY_RUST_TAG:-}"
+XRAY_RUST_TAG_OBJECT="${XRAY_RUST_TAG_OBJECT:-}"
 # shellcheck disable=SC1091
 source "$MOBILE_ROOT/release/toolchains.env"
 # shellcheck disable=SC1091
@@ -112,15 +115,25 @@ verify_core_checkout() {
   [[ "$actual_tree" == "$XRAY_RUST_TREE" ]] ||
     die "core tree is $actual_tree, expected $XRAY_RUST_TREE"
 
-  local actual_tag_object
-  actual_tag_object="$(git -C "$checkout" rev-parse "$XRAY_RUST_TAG^{tag}" 2>/dev/null || true)"
-  [[ "$actual_tag_object" == "$XRAY_RUST_TAG_OBJECT" ]] ||
-    die "core tag object is missing or differs for $XRAY_RUST_TAG"
+  case "$XRAY_RUST_REF_KIND" in
+    tag)
+      local actual_tag_object
+      actual_tag_object="$(git -C "$checkout" rev-parse "$XRAY_RUST_TAG^{tag}" 2>/dev/null || true)"
+      [[ "$actual_tag_object" == "$XRAY_RUST_TAG_OBJECT" ]] ||
+        die "core tag object is missing or differs for $XRAY_RUST_TAG"
 
-  local peeled_tag
-  peeled_tag="$(git -C "$checkout" rev-parse "$XRAY_RUST_TAG^{commit}")"
-  [[ "$peeled_tag" == "$XRAY_RUST_COMMIT" ]] ||
-    die "core tag $XRAY_RUST_TAG resolves to $peeled_tag, expected $XRAY_RUST_COMMIT"
+      local peeled_tag
+      peeled_tag="$(git -C "$checkout" rev-parse "$XRAY_RUST_TAG^{commit}")"
+      [[ "$peeled_tag" == "$XRAY_RUST_COMMIT" ]] ||
+        die "core tag $XRAY_RUST_TAG resolves to $peeled_tag, expected $XRAY_RUST_COMMIT"
+
+      ;;
+    commit)
+      [[ -z "$XRAY_RUST_TAG" && -z "$XRAY_RUST_TAG_OBJECT" ]] ||
+        die "candidate commit pin must not claim a release tag"
+      ;;
+    *) die "unsupported core reference kind: $XRAY_RUST_REF_KIND" ;;
+  esac
 
   [[ "$(sha256_file "$checkout/Cargo.lock")" == "$XRAY_RUST_CARGO_LOCK_SHA256" ]] ||
     die "core Cargo.lock checksum differs from release/core.env"
@@ -159,10 +172,25 @@ resolve_core_checkout() {
     git clone --filter=blob:none --no-checkout "$XRAY_RUST_REPOSITORY" "$candidate" >&2
   fi
 
-  git -C "$candidate" fetch --force origin \
-    "$XRAY_RUST_COMMIT" \
-    "refs/tags/$XRAY_RUST_TAG:refs/tags/$XRAY_RUST_TAG" >&2
+  case "$XRAY_RUST_REF_KIND" in
+    tag)
+      git -C "$candidate" fetch --force origin \
+        "$XRAY_RUST_COMMIT" \
+        "refs/tags/$XRAY_RUST_TAG:refs/tags/$XRAY_RUST_TAG" >&2
+      ;;
+    commit) git -C "$candidate" fetch origin "$XRAY_RUST_COMMIT" >&2 ;;
+    *) die "unsupported core reference kind: $XRAY_RUST_REF_KIND" ;;
+  esac
   git -C "$candidate" checkout --detach "$XRAY_RUST_COMMIT" >&2
   verify_core_checkout "$candidate"
   echo "$candidate"
+}
+
+# Candidate commits can be built/tested before the core RC tag exists. Canonical
+# Apple preparation and every publication path still require the matching tag.
+require_tagged_core() {
+  [[ "$XRAY_RUST_REF_KIND" == tag ]] ||
+    die "core is pinned to a candidate commit; publication requires the verified core release tag"
+  [[ "$XRAY_RUST_TAG" == "v$XRAY_MOBILE_VERSION" && "$XRAY_RUST_TAG_OBJECT" =~ ^[0-9a-f]{40}$ ]] ||
+    die "core release tag must match the mobile version and have a locked annotated tag object"
 }

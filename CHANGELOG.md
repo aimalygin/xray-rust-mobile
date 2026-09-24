@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.7.0-rc.1 - 2026-09-22
+
+Candidate preparation; public core tag, canonical artifacts and device acceptance
+are pending. This entry does not describe a published SDK.
+
+- Synchronize Hysteria2 and WireGuard configuration/profile import, capability
+  discovery, DNS bootstrap and carrier network-change APIs with C ABI 1.7.
+- Preserve WireGuard peers, PSKs, split routes and protected Android sockets;
+  update Apple path observation and endpoint-route handling.
+- Pin an exact core candidate commit for preparation. Canonical Apple archive
+  preparation and publication require replacing it with the verified matching
+  annotated core tag; candidate pins cannot pass the release boundary.
+- Require v0.7 exact-candidate Apple/Android evidence, including both protocols
+  and Android FileDescriptor/PacketPump paths. RC distribution stays GitHub-only.
+- Retain documented core performance limitations, including deferred H2/TUN RSS
+  investigation and separate Hysteria2 comparison gaps.
+
 ## 0.6.1 - 2026-09-09
 
 - Promotes the tested 0.6.1-rc.1 SDK to stable with no changes to the runtime,

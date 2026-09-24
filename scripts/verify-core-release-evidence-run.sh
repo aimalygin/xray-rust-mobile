@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
 
 require_command gh
+require_tagged_core
+evidence_profile="$("$SCRIPT_DIR/release-evidence-profile.sh" "$XRAY_MOBILE_VERSION")"
 
 core_repository="${XRAY_RUST_REPOSITORY#https://github.com/}"
 core_repository="${core_repository%.git}"
@@ -15,22 +17,22 @@ core_repository="${core_repository%.git}"
 [[ "$XRAY_RUST_TREE" =~ ^[0-9a-f]{40}$ ]] || die "invalid locked core tree"
 
 workflow="$({
-  gh api "repos/$core_repository/actions/workflows/v06-release-evidence.yml" \
+  gh api "repos/$core_repository/actions/workflows/$evidence_profile-release-evidence.yml" \
     --jq '[.id, .path, .state] | @tsv'
 })"
 IFS=$'\t' read -r workflow_id workflow_path workflow_state <<<"$workflow"
 [[ "$workflow_id" =~ ^[1-9][0-9]*$ ]] || die "core evidence workflow id is invalid"
-[[ "$workflow_path" == ".github/workflows/v06-release-evidence.yml" ]] ||
+[[ "$workflow_path" == ".github/workflows/$evidence_profile-release-evidence.yml" ]] ||
   die "core evidence workflow path differs"
 [[ "$workflow_state" == "active" ]] || die "core evidence workflow is not active"
 
 run_id="$({
   gh api \
-    "repos/$core_repository/actions/workflows/v06-release-evidence.yml/runs?event=workflow_dispatch&status=success&head_sha=$XRAY_RUST_COMMIT&per_page=100" \
+    "repos/$core_repository/actions/workflows/$evidence_profile-release-evidence.yml/runs?event=workflow_dispatch&status=success&head_sha=$XRAY_RUST_COMMIT&per_page=100" \
     --jq ".workflow_runs | map(select(.head_sha == \"$XRAY_RUST_COMMIT\")) | sort_by(.created_at) | last | .id // empty"
 })"
 [[ "$run_id" =~ ^[1-9][0-9]*$ ]] ||
-  die "no successful core v0.6 evidence run exists for $XRAY_RUST_COMMIT"
+  die "no successful core $evidence_profile evidence run exists for $XRAY_RUST_COMMIT"
 
 run="$({
   gh api "repos/$core_repository/actions/runs/$run_id" \
@@ -39,14 +41,14 @@ run="$({
 expected_run="$workflow_id"$'\t'"$XRAY_RUST_COMMIT"$'\t'"$XRAY_RUST_TREE"$'\t'\
 "$core_repository"$'\tworkflow_dispatch\tcompleted\tsuccess'
 [[ "$run" == "$expected_run" ]] ||
-  die "core v0.6 evidence run is not bound to the locked commit and tree"
+  die "core $evidence_profile evidence run is not bound to the locked commit and tree"
 
 artifact="$({
   gh api "repos/$core_repository/actions/runs/$run_id/artifacts?per_page=100" \
-    --jq ".artifacts[] | select(.name == \"v06-release-evidence-$XRAY_RUST_COMMIT\" and .expired == false) | [.name, .workflow_run.head_sha] | @tsv"
+    --jq ".artifacts[] | select(.name == \"$evidence_profile-release-evidence-$XRAY_RUST_COMMIT\" and .expired == false) | [.name, .workflow_run.head_sha] | @tsv"
 })"
-expected_artifact="v06-release-evidence-$XRAY_RUST_COMMIT"$'\t'"$XRAY_RUST_COMMIT"
+expected_artifact="$evidence_profile-release-evidence-$XRAY_RUST_COMMIT"$'\t'"$XRAY_RUST_COMMIT"
 [[ "$artifact" == "$expected_artifact" ]] ||
-  die "validated core v0.6 evidence artifact is missing, expired, duplicated, or bound to another commit"
+  die "validated core $evidence_profile evidence artifact is missing, expired, duplicated, or bound to another commit"
 
-echo "verified core v0.6 release evidence run: $run_id"
+echo "verified core $evidence_profile release evidence run: $run_id"
