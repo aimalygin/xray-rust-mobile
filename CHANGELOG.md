@@ -2,10 +2,10 @@
 
 ## Unreleased
 
-## 0.7.0-rc.1 - 2026-09-22
+## 0.7.0 - 2026-09-27
 
-Candidate preparation; public core tag, canonical artifacts and device acceptance
-are pending. This entry does not describe a published SDK.
+Stable preparation; the public core tag and canonical SDK artifacts remain
+pending. The measured device archive retains its original candidate identity.
 
 - Synchronize Hysteria2 and WireGuard configuration/profile import, capability
   discovery, DNS bootstrap and carrier network-change APIs with C ABI 1.7.
@@ -15,7 +15,11 @@ are pending. This entry does not describe a published SDK.
   preparation and publication require replacing it with the verified matching
   annotated core tag; candidate pins cannot pass the release boundary.
 - Require v0.7 exact-candidate Apple/Android evidence, including both protocols
-  and Android FileDescriptor/PacketPump paths. RC distribution stays GitHub-only.
+  and Android FileDescriptor/PacketPump paths. Publish directly to the stable
+  channel after final CI, canonical artifact preparation and consumer checks.
+- Preserve owner decisions: Android cellular handover was not tested, and the
+  investigated Android WireGuard timeout case is accepted for 0.7 with its
+  original failures retained. No generic reliability waiver or product fix is claimed.
 - Retain documented core performance limitations, including deferred H2/TUN RSS
   investigation and separate Hysteria2 comparison gaps.
 
