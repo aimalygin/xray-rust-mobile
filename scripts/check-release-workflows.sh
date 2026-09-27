@@ -168,22 +168,22 @@ require_block_text "$metadata_job" \
   'verified_commit="$(git rev-parse "$tag_ref^{commit}")"' \
   "release metadata does not record the peeled tag commit"
 require_block_text "$metadata_job" \
-  'if [[ "$XRAY_MOBILE_VERSION" == 0.6.* ]]; then' \
-  "v0.6 mobile publication is not conditionally bound to core release evidence"
+  'run: scripts/verify-core-release-evidence-run.sh' \
+  "mobile publication must unconditionally verify versioned core evidence"
 require_block_text "$metadata_job" \
   'scripts/verify-core-release-evidence-run.sh' \
-  "v0.6 mobile publication does not verify the matching core evidence run"
+  "v0.6/v0.7 mobile publication does not verify the matching core evidence run"
 
 core_evidence_verifier="$MOBILE_ROOT/scripts/verify-core-release-evidence-run.sh"
 for required in \
-  'actions/workflows/v06-release-evidence.yml' \
+  'actions/workflows/$evidence_profile-release-evidence.yml' \
   'event=workflow_dispatch&status=success&head_sha=$XRAY_RUST_COMMIT' \
   '.head_commit.tree_id' \
   '.head_repository.full_name' \
-  'v06-release-evidence-$XRAY_RUST_COMMIT' \
+  '$evidence_profile-release-evidence-$XRAY_RUST_COMMIT' \
   '.expired == false'; do
   require_text "$core_evidence_verifier" "$required" \
-    "core v0.6 evidence verifier is missing required binding: $required"
+    "versioned core evidence verifier is missing required binding: $required"
 done
 
 for job in apple-source apple-asset android-build draft-release maven-publish finalize-release; do
@@ -349,5 +349,15 @@ tag_validation_steps="$(
 if grep -Eq '\$\{\{[[:space:]]*secrets\.|MAVEN_(CENTRAL|SIGNING)_' <<<"$tag_validation_steps"; then
   die "tag checkout or validation can access Maven Central or signing secrets"
 fi
+
+
+require_text "$prepare_script" 'require_tagged_core' \
+  "canonical Apple preparation accepts an unpublished core candidate"
+require_text "$prepare_workflow" 'require_tagged_core' \
+  "Prepare release workflow accepts an unpublished core candidate"
+require_text "$MOBILE_ROOT/scripts/check-release.sh" '[[ "$mode" == prepare ]] || require_tagged_core' \
+  "strict mobile publication accepts an unpublished core candidate"
+require_text "$core_evidence_verifier" 'require_tagged_core' \
+  "core release evidence accepts a candidate pin"
 
 echo "verified stable and prerelease release workflow policy"

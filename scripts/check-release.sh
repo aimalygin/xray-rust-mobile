@@ -16,6 +16,15 @@ tag="${1:-}"
 [[ -z "$tag" || "$mode" == "strict" ]] ||
   die "release tags require strict committed-source validation"
 release_channel="$("$SCRIPT_DIR/release-channel.sh" "$XRAY_MOBILE_VERSION")"
+case "$XRAY_RUST_REF_KIND" in
+  tag) require_tagged_core ;;
+  commit)
+    [[ "$mode" == prepare ]] || require_tagged_core
+    [[ -z "$XRAY_RUST_TAG" && -z "$XRAY_RUST_TAG_OBJECT" ]] ||
+      die "candidate commit pin must not claim a release tag"
+    ;;
+  *) die "unsupported core reference kind: $XRAY_RUST_REF_KIND" ;;
+esac
 if [[ -n "$tag" && "$tag" != "v$XRAY_MOBILE_VERSION" ]]; then
   die "release tag $tag does not match v$XRAY_MOBILE_VERSION"
 fi

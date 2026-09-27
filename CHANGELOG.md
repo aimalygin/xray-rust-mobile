@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-09-27
+
+Stable channel with Hysteria2/WireGuard support. The measured device archive
+retains its original candidate identity and the documented owner decisions.
+
+- Synchronize Hysteria2 and WireGuard configuration/profile import, capability
+  discovery, DNS bootstrap and carrier network-change APIs with C ABI 1.7.
+- Preserve WireGuard peers, PSKs, split routes and protected Android sockets;
+  update Apple path observation and endpoint-route handling.
+- Pin annotated core tag `v0.7.0`, commit
+  `67969094b352f948c6b8b9e2ac75402c577cb7f7`, its tree and source checksums.
+  Canonical Apple preparation and publication verify this immutable identity.
+- Require v0.7 exact-candidate Apple/Android evidence, including both protocols
+  and Android FileDescriptor/PacketPump paths. Publish directly to the stable
+  channel after final CI, canonical artifact preparation and consumer checks.
+- Preserve owner decisions: Android cellular handover was not tested, and the
+  investigated Android WireGuard timeout case is accepted for 0.7 with its
+  original failures retained. No generic reliability waiver or product fix is claimed.
+- Retain documented core performance limitations, including deferred H2/TUN RSS
+  investigation and separate Hysteria2 comparison gaps.
+
 ## 0.6.1 - 2026-09-09
 
 - Promotes the tested 0.6.1-rc.1 SDK to stable with no changes to the runtime,

@@ -67,6 +67,32 @@ version that has already reached `PUBLISHED`.
 
 ## Prepare
 
+### Candidate core source before the public tag
+
+For stable or RC preparation, `release/core.env` may set `XRAY_RUST_REF_KIND=commit`,
+leave `XRAY_RUST_TAG` and `XRAY_RUST_TAG_OBJECT` empty, and pin a clean exact
+core commit/tree plus the existing file hashes. `check-release.sh --prepare`
+and source builds/tests accept that explicit candidate mode. There is no
+branch-based or dirty-source release fallback.
+
+Canonical Apple preparation, generated/strict release validation and publication
+require `XRAY_RUST_REF_KIND=tag` (the default for old locks) and the matching
+annotated core release tag. After the core passes CI and exact-candidate device
+evidence and publishes its matching release tag, replace the candidate lock with the
+verified tag object and release commit/tree before preparing Apple artifacts.
+Do not create an early public core tag simply to satisfy the mobile lock.
+
+The v0.7 gate selects `v07-release-evidence.yml` and the corresponding artifact;
+v0.6 retains its existing workflow. Both bind to the locked core repository,
+commit/tree and an unexpired successful evidence artifact. v0.7 requires fresh
+Apple/Android protocol lifecycle coverage, including FileDescriptor and PacketPump.
+Candidate source checks and old device reports do not establish release acceptance.
+For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
+archive only with the reviewed metadata-only promotion and explicit owner
+decisions: Android cellular was not tested, and the investigated WireGuard
+timeout case is accepted for this release. Measured identities and failures remain
+in the archive; runtime, ABI, dependencies and build inputs cannot change.
+
 1. Choose either a stable `MAJOR.MINOR.PATCH` or an RC
    `MAJOR.MINOR.PATCH-rc.N`. Update `release/version.env`, `Package.swift`,
    Android `VERSION_NAME`, the
@@ -108,8 +134,8 @@ The tag workflow:
 
 - verifies the annotated tag, mobile version, exact core tag/commit/tree/file
   hashes, adapter snapshots, and the Apple producer job/source commit/tree;
-- for every `0.6.x` release, requires the successful, non-expired core
-  `v0.6 release evidence` run and retained artifact for that exact locked core
+- requires the successful, non-expired versioned `v0.6 release evidence` or
+  `v0.7 release evidence` run and retained artifact for that exact locked core
   commit and tree. For stable `0.6.0`, the core workflow validates the original
   RC archive plus the stable promotion source delta; it preserves the measured
   RC identity and does not claim a new physical-device run. Long device soak

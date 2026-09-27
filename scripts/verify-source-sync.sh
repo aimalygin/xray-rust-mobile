@@ -55,6 +55,10 @@ compare_tree \
 compare_file \
   "$core/tests/fixtures/vless-encryption/imports.json" \
   "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
+compare_tree "$core/tests/fixtures/profile-import" "$MOBILE_ROOT/tests/fixtures/profile-import"
+for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer; do
+  compare_file "$core/tests/fixtures/configs/$fixture.json" "$MOBILE_ROOT/tests/fixtures/configs/$fixture.json"
+done
 compare_tree \
   "$core/platform/android/xraymobile/src/main/java" \
   "$MOBILE_ROOT/android/xraymobile/src/main/java"
@@ -65,4 +69,4 @@ compare_file \
   "$core/platform/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp" \
   "$MOBILE_ROOT/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp"
 
-echo "verified mobile adapters against $XRAY_RUST_TAG"
+echo "verified mobile adapters against ${XRAY_RUST_TAG:-$XRAY_RUST_COMMIT}"

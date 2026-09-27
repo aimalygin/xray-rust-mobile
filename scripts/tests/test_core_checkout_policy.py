@@ -17,8 +17,8 @@ class CoreCheckoutPolicyTests(unittest.TestCase):
             ["bash", "-c", 'source "$1"; resolve_core_checkout', "resolve-core", str(COMMON)],
             text=True,
         ).strip()
-        cls.core_tag = subprocess.check_output(
-            ["bash", "-c", 'source "$1"; printf "%s" "$XRAY_RUST_TAG"', "core-tag", str(COMMON)],
+        cls.core_commit = subprocess.check_output(
+            ["bash", "-c", 'source "$1"; printf "%s" "$XRAY_RUST_COMMIT"', "core-tag", str(COMMON)],
             text=True,
         ).strip()
 
@@ -31,7 +31,7 @@ class CoreCheckoutPolicyTests(unittest.TestCase):
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(self.checkout), "checkout", "--quiet", self.core_tag],
+            ["git", "-C", str(self.checkout), "checkout", "--quiet", self.core_commit],
             check=True,
         )
 

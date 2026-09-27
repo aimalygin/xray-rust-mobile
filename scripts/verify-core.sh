@@ -29,4 +29,4 @@ grep -Fq "constexpr uint32_t kExpectedFfiMajorVersion = $XRAY_FFI_ABI_MAJOR;" \
   "$MOBILE_ROOT/android/xraymobile/src/main/cpp/xray_mobile_jni.cpp" ||
   die "JNI adapter expects a different FFI ABI major"
 
-echo "verified $XRAY_RUST_TAG ($XRAY_RUST_COMMIT), FFI ABI $XRAY_FFI_ABI_MAJOR"
+echo "verified ${XRAY_RUST_TAG:-candidate} ($XRAY_RUST_COMMIT), FFI ABI $XRAY_FFI_ABI_MAJOR"
