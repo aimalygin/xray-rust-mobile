@@ -4,14 +4,11 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-Stable SDK version: [`v0.6.1`](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.6.1).
-Promoted from the tested 0.6.1-rc.1 SDK with the same core commit and adapter
-sources; see [the release record](CHANGELOG.md#061---2026-09-09).
-
-This development branch prepares stable **0.7.0** with Hysteria2/WireGuard support.
-Canonical release artifacts remain pending. The device evidence retains its
-measured source and the explicit Android cellular/WireGuard owner decisions.
-Use the stable tag above for currently published packages.
+SDK version: **0.7.0**, with Hysteria2/WireGuard support and C ABI 1.7.
+See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
+for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#070---2026-09-27)
+for the release scope. The device evidence retains its measured source and the
+explicit [Android cellular/WireGuard owner decisions](https://github.com/aimalygin/xray-rust/blob/v0.7.0/docs/v07-stable-promotion.md).
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -47,7 +44,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.7.0` (preparation, unpublished) | candidate commit | `eaad8a9359d6da8956d0e0699a60864ccd4be5e9` | `1.7` |
+| `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
 | `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
 | `0.6.0-rc.1` (candidate) | `v0.6.0-rc.1` | `1e713ca3e6c57be5747b4915b31e0db040a01c0c` | `1` |
@@ -79,7 +76,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.6.1"
+        exact: "0.7.0"
     ),
 ]
 ~~~
@@ -244,12 +241,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.6.1")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.7.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-available from [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.6.1).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.7.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
