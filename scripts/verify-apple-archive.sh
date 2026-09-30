@@ -69,7 +69,10 @@ verify_library() {
   [[ -f "$library" ]] || die "Apple archive has no library for $identifier"
   [[ "$(file "$library")" == *"current ar archive"* ]] ||
     die "Apple archive library is not static for $identifier"
-  lipo "$library" -verify_arch "$@"
+  local architecture
+  for architecture in "$@"; do
+    lipo "$library" -verify_arch "$architecture"
+  done
 
   # grep -c rather than grep -q: an early -q exit kills otool with SIGPIPE, and
   # under `set -o pipefail` that turns the whole check into a silent no-op.

@@ -165,18 +165,24 @@ fi
 rm -rf "$xcframework"
 xcodebuild "${xcframework_args[@]}" -output "$xcframework"
 
-lipo "$xcframework/ios-arm64/libxray_ffi.a" -verify_arch arm64
-lipo "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" \
-  -verify_arch arm64 x86_64
+verify_architectures() {
+  local library="$1" architecture
+  shift
+  # Newer lipo versions parse the second architecture as another input file.
+  # Check each required architecture independently on both old and new Xcode.
+  for architecture in "$@"; do
+    lipo "$library" -verify_arch "$architecture"
+  done
+}
+
+verify_architectures "$xcframework/ios-arm64/libxray_ffi.a" arm64
+verify_architectures "$xcframework/ios-arm64_x86_64-simulator/libxray_ffi.a" arm64 x86_64
 if [[ "$include_tvos" == "1" ]]; then
-  lipo "$xcframework/tvos-arm64/libxray_ffi.a" \
-    -verify_arch arm64
-  lipo "$xcframework/tvos-arm64_x86_64-simulator/libxray_ffi.a" \
-    -verify_arch arm64 x86_64
+  verify_architectures "$xcframework/tvos-arm64/libxray_ffi.a" arm64
+  verify_architectures "$xcframework/tvos-arm64_x86_64-simulator/libxray_ffi.a" arm64 x86_64
 fi
 if [[ "$include_macos" == "1" ]]; then
-  lipo "$xcframework/macos-arm64_x86_64/libxray_ffi.a" \
-    -verify_arch arm64 x86_64
+  verify_architectures "$xcframework/macos-arm64_x86_64/libxray_ffi.a" arm64 x86_64
 fi
 
 packaged_headers="$(
