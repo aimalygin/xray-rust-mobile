@@ -46,7 +46,7 @@ cp "$core/tests/fixtures/vless-encryption/imports.json" \
   "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
 sync_tree "$core/tests/fixtures/profile-import" "$MOBILE_ROOT/tests/fixtures/profile-import"
 mkdir -p "$MOBILE_ROOT/tests/fixtures/configs"
-for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer; do
+for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer trojan shadowsocks2022 vmess; do
   cp "$core/tests/fixtures/configs/$fixture.json" "$MOBILE_ROOT/tests/fixtures/configs/$fixture.json"
 done
 sync_tree \

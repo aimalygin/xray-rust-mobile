@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.8.0-rc.1 - 2026-09-30
+
+Candidate preparation; artifacts are not yet published.
+
+- Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
+  DNS bootstrap and tunnel integration through C ABI 1.8.
+- Pin the exact development core commit and synchronize the canonical
+  Swift/Kotlin adapters, C header and protocol fixtures.
+- Keep Shadowsocks AEAD-2017 and legacy VMess authentication excluded.
+- Require separate v0.8 device/performance evidence and matching artifacts;
+  the published 0.7 owner exceptions do not carry over.
+
 ## 0.7.0 - 2026-09-27
 
 Stable channel with Hysteria2/WireGuard support. The measured device archive
