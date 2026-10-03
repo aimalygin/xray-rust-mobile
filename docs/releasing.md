@@ -93,6 +93,15 @@ The current development pin is not accepted release evidence, and the 0.7
 exceptions do not carry over. v0.7 requires fresh
 Apple/Android protocol lifecycle coverage, including FileDescriptor and PacketPump.
 Candidate source checks and old device reports do not establish release acceptance.
+
+The [2026-10-03 iPhone candidate report](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-03-iphone17-v08/README.md)
+uses core `de339981` and SDK `0148543`: LAN protocol/cipher checks and bounded
+Trojan/VMess WAN transitions passed. SS2022 WAN passed only with an explicit
+diagnostic fragmentation relay after the original path failed on IPv6 UDP;
+Go controls reproduced the size/DF-dependent loss. The report preserves that
+condition and all failures. It does not close the full Apple/Android or schema-4
+gate, and neither the development core pin nor artifact locks changed.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
