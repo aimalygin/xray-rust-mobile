@@ -10,6 +10,8 @@ Candidate preparation; artifacts are not yet published.
   DNS bootstrap and tunnel integration through C ABI 1.8.
 - Pin the exact development core commit and synchronize the canonical
   Swift/Kotlin adapters, C header and protocol fixtures.
+- Align the core's reported version with SDK `0.8.0-rc.1` before candidate
+  acceptance; retain the unprepared artifact locks and publication guards.
 - Include bounded VMess ChaCha duplex scheduling for direct raw-TCP SOCKS
   traffic and wait for connection cleanup when stopping the core. The paired
   host improvement and its memory/latency tradeoffs are documented upstream;
