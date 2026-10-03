@@ -82,11 +82,26 @@ evidence and publishes its matching release tag, replace the candidate lock with
 verified tag object and release commit/tree before preparing Apple artifacts.
 Do not create an early public core tag simply to satisfy the mobile lock.
 
-The v0.7 gate selects `v07-release-evidence.yml` and the corresponding artifact;
-v0.6 retains its existing workflow. Both bind to the locked core repository,
-commit/tree and an unexpired successful evidence artifact. v0.7 requires fresh
+The version selector chooses `v08-release-evidence.yml` for 0.8,
+`v07-release-evidence.yml` for 0.7 and the existing v0.6 workflow for 0.6.
+Each binds to the locked core repository, commit/tree and an unexpired
+successful evidence artifact. v0.8 requires schema-4 evidence for Trojan,
+Shadowsocks 2022 and VMess on Apple and both Android paths, including the
+required import, network/lifecycle, resource and performance checks. See the
+[v0.8 release readiness checklist](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/v08-release-readiness.md).
+The current development pin is not accepted release evidence, and the 0.7
+exceptions do not carry over. v0.7 requires fresh
 Apple/Android protocol lifecycle coverage, including FileDescriptor and PacketPump.
 Candidate source checks and old device reports do not establish release acceptance.
+
+The [2026-10-03 iPhone candidate report](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-03-iphone17-v08/README.md)
+uses core `de339981` and SDK `0148543`: LAN protocol/cipher checks and bounded
+Trojan/VMess WAN transitions passed. SS2022 WAN passed only with an explicit
+diagnostic fragmentation relay after the original path failed on IPv6 UDP;
+Go controls reproduced the size/DF-dependent loss. The report preserves that
+condition and all failures. It does not close the full Apple/Android or schema-4
+gate, and neither the development core pin nor artifact locks changed.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
