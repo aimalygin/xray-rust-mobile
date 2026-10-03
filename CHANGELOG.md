@@ -10,6 +10,10 @@ Candidate preparation; artifacts are not yet published.
   DNS bootstrap and tunnel integration through C ABI 1.8.
 - Pin the exact development core commit and synchronize the canonical
   Swift/Kotlin adapters, C header and protocol fixtures.
+- Include bounded VMess ChaCha duplex scheduling for direct raw-TCP SOCKS
+  traffic and wait for connection cleanup when stopping the core. The paired
+  host improvement and its memory/latency tradeoffs are documented upstream;
+  they do not establish TUN or mobile-device performance.
 - Keep Shadowsocks AEAD-2017 and legacy VMess authentication excluded.
 - Require separate v0.8 device/performance evidence and matching artifacts;
   the published 0.7 owner exceptions do not carry over.
