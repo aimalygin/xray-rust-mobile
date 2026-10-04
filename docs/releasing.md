@@ -116,6 +116,16 @@ lifecycle invocations. Earlier failures did not recur under diagnostics, but
 their causes remain unresolved. The CI relay accounting fix changes only a
 Rust test; neither these results nor that fix require a native runtime repin.
 
+The [direct SS2022 UDP/MTU investigation](https://github.com/aimalygin/xray-rust/blob/753acd1b2ec018a97a167a5ce2c057bd078ce287/docs/device-results/2026-10-04-iphone17-ss2022-mtu/README.md)
+reproduces the loss in Go and on iPhone and localizes the detailed boundary
+failure to the return path after DF replies leave the server. Changing only
+the temporary native Xray UDP socket to permit fragmentation passes 56/56
+Go boundary trials, 40/40 iPhone size trials and direct Wi-Fi/cellular/Wi-Fi
+plus lock/wake, without a relay. A persistent production-path configuration
+and the exact dropping hop remain unvalidated. This adds DEBUG reference-app
+instrumentation and evidence only; the runtime pin, canonical source snapshots
+and artifact locks remain unchanged. Failed default controls remain recorded.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
