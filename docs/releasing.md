@@ -102,6 +102,14 @@ Go controls reproduced the size/DF-dependent loss. The report preserves that
 condition and all failures. It does not close the full Apple/Android or schema-4
 gate, and neither the development core pin nor artifact locks changed.
 
+The [2026-10-04 iPhone follow-up](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-lifecycle-resources/README.md)
+adds startup cancellation, rapid restart, bounded extension CPU/memory and
+legacy controls on iOS 27.0.1. It uses the same release Rust library and vendored
+SDK sources, plus DEBUG-only reference-app instrumentation. The original Trojan
+timeout and two intermittent WireGuard failures are retained alongside passing
+controls; these observations do not close clean legacy/performance acceptance.
+The runtime pin, source snapshots and artifact locks are unchanged.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
