@@ -126,6 +126,18 @@ and the exact dropping hop remain unvalidated. This adds DEBUG reference-app
 instrumentation and evidence only; the runtime pin, canonical source snapshots
 and artifact locks remain unchanged. Failed default controls remain recorded.
 
+The [ordered reliability/deployment follow-up](https://github.com/aimalygin/xray-rust/blob/7aaf9a5bd07d174145aaf004530402483bf0b57f/docs/device-results/2026-10-04-iphone17-reliability-deployment/README.md)
+passes five further WireGuard smoke and five Trojan lifecycle invocations, with
+210 TCP / 140 UDP echoes matched at the backend. Earlier failure causes remain
+unresolved. An optional server-only SS2022 startup hook reapplies the socket
+policy on five starts including two restarts, without a resident helper. WAN
+controls cover all three ciphers but retain failed trials: ChaCha Go 40/44,
+AES-128 iPhone 38/40, and a later AES-128 Go 43/44 including a lost unfragmented
+reply. AES-256 Go 44/44 and iPhone 40/40 pass; ordinary AES-128 iPhone smoke also
+passes. This validates restart persistence, not universal WAN reliability or
+production deployment. No native/SDK source, core pin or artifact lock changes
+are required; full device and schema-4 acceptance remain open.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
