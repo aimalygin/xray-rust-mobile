@@ -110,6 +110,12 @@ timeout and two intermittent WireGuard failures are retained alongside passing
 controls; these observations do not close clean legacy/performance acceptance.
 The runtime pin, source snapshots and artifact locks are unchanged.
 
+The [same-device 0.7/0.8 WireGuard comparison](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-wg-baseline/README.md)
+passed three alternating invocations per version and three further Trojan
+lifecycle invocations. Earlier failures did not recur under diagnostics, but
+their causes remain unresolved. The CI relay accounting fix changes only a
+Rust test; neither these results nor that fix require a native runtime repin.
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
