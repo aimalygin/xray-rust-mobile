@@ -138,6 +138,39 @@ passes. This validates restart persistence, not universal WAN reliability or
 production deployment. No native/SDK source, core pin or artifact lock changes
 are required; full device and schema-4 acceptance remain open.
 
+On 2026-10-04 the owner deferred further SS2022 UDP-loss investigation and
+directed work to continue with other acceptance. Preserve the failures and path
+conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/4cd4a2a17ca2982f345e02ebc64febbc90ba4b1d/docs/v08-release-evidence.md)
+lists remaining physical Android, Apple shared-scenario and calibrated sample
+work. No validator exception, native repin or release authorization is implied.
+Ordinary CI passed core `2c04d98` and SDK `f18254a`; these source checks are
+separate from device/release qualification.
+
+The Android PacketPump follow-up advances the development source pin to
+`0d788564d85505ba0e2778320a561bc3d6500346` (tree
+`f71235a8b17a5e5e88809ada36ce4efc19f29b00`) and synchronizes `XrayVpnService`.
+An empty nonblocking TUN read now waits for readiness with a bounded `Os.poll`
+instead of spinning. Packet buffers and the public API are unchanged. Earlier
+Android/iPhone measurements retain native revision `de339981`; the Android
+follow-up uses that exact native/JNI binary with a separately hashed updated
+Kotlin adapter. These observations are not an exact-new-pin release manifest.
+Reassess candidate evidence after the adapter change; artifact locks remain
+unprepared and no publication is authorized.
+
+The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/4cd4a2a17ca2982f345e02ebc64febbc90ba4b1d/docs/device-results/2026-10-04-android-v08/README.md)
+retains both baseline and corrected-adapter runs. Each functional matrix passes
+14/14 combinations, with 182 HTTP and 182 nonce-checked UDP checks. The
+follow-up records 5,760/5,760 stress HTTP and 11,518/11,520 UDP attempts, with
+all twelve bounded RSS/thread criteria passing. Maximum recovery-median RSS
+growth is 7.61 MiB and no thread count grows. PacketPump recovery CPU is about
+2.6–3.1% of one core after the readiness fix, versus about 101% before.
+SS2022 AES-128/AES-256 PP timeouts remain unexplained; fixing idle CPU does not
+resolve these packet losses. All original failures and exact native/APK hashes
+remain published, along with replay scripts and verified cleanup. Android
+network/lock and shared/legacy coverage, calibrated samples and schema-4
+qualification remain open.
+
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard
