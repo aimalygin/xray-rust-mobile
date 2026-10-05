@@ -140,7 +140,7 @@ are required; full device and schema-4 acceptance remain open.
 
 On 2026-10-04 the owner deferred further SS2022 UDP-loss investigation and
 directed work to continue with other acceptance. Preserve the failures and path
-conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/4cd4a2a17ca2982f345e02ebc64febbc90ba4b1d/docs/v08-release-evidence.md)
+conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/3c7b1628544dc64ffc6f1284169c5bf6ac136c48/docs/v08-release-evidence.md)
 lists remaining physical Android, Apple shared-scenario and calibrated sample
 work. No validator exception, native repin or release authorization is implied.
 Ordinary CI passed core `2c04d98` and SDK `f18254a`; these source checks are
@@ -157,7 +157,7 @@ Kotlin adapter. These observations are not an exact-new-pin release manifest.
 Reassess candidate evidence after the adapter change; artifact locks remain
 unprepared and no publication is authorized.
 
-The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/4cd4a2a17ca2982f345e02ebc64febbc90ba4b1d/docs/device-results/2026-10-04-android-v08/README.md)
+The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/3c7b1628544dc64ffc6f1284169c5bf6ac136c48/docs/device-results/2026-10-04-android-v08/README.md)
 retains both baseline and corrected-adapter runs. Each functional matrix passes
 14/14 combinations, with 182 HTTP and 182 nonce-checked UDP checks. The
 follow-up records 5,760/5,760 stress HTTP and 11,518/11,520 UDP attempts, with
@@ -167,8 +167,12 @@ growth is 7.61 MiB and no thread count grows. PacketPump recovery CPU is about
 SS2022 AES-128/AES-256 PP timeouts remain unexplained; fixing idle CPU does not
 resolve these packet losses. All original failures and exact native/APK hashes
 remain published, along with replay scripts and verified cleanup. Android
-network/lock and shared/legacy coverage, calibrated samples and schema-4
-qualification remain open.
+network/lock checks are owner-skipped for v0.8 on both paths, per the
+2026-10-04 instruction “для android пропускаем”. They are recorded as **not
+tested**; only those two Android transition requirements are excluded from the
+v0.8 policy. Apple requirements and measured UDP failures remain unchanged.
+Android active-flow and shared/legacy coverage, calibrated samples and
+schema-4 qualification remain open.
 
 
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
