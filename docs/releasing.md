@@ -140,11 +140,13 @@ are required; full device and schema-4 acceptance remain open.
 
 On 2026-10-04 the owner deferred further SS2022 UDP-loss investigation and
 directed work to continue with other acceptance. Preserve the failures and path
-conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/3c7b1628544dc64ffc6f1284169c5bf6ac136c48/docs/v08-release-evidence.md)
+conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/v08-release-evidence.md)
 lists remaining physical Android, Apple shared-scenario and calibrated sample
 work. No validator exception, native repin or release authorization is implied.
-Ordinary CI passed core `2c04d98` and SDK `f18254a`; these source checks are
-separate from device/release qualification.
+Before the regression-report changes, ordinary CI passed core `3c7b162`
+([run](https://github.com/aimalygin/xray-rust/actions/runs/37253541471)) and SDK
+`90355c5` ([run](https://github.com/aimalygin/xray-rust-mobile/actions/runs/37253545430));
+these source checks are separate from device/release qualification.
 
 The Android PacketPump follow-up advances the development source pin to
 `0d788564d85505ba0e2778320a561bc3d6500346` (tree
@@ -157,7 +159,7 @@ Kotlin adapter. These observations are not an exact-new-pin release manifest.
 Reassess candidate evidence after the adapter change; artifact locks remain
 unprepared and no publication is authorized.
 
-The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/3c7b1628544dc64ffc6f1284169c5bf6ac136c48/docs/device-results/2026-10-04-android-v08/README.md)
+The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/device-results/2026-10-04-android-v08/README.md)
 retains both baseline and corrected-adapter runs. Each functional matrix passes
 14/14 combinations, with 182 HTTP and 182 nonce-checked UDP checks. The
 follow-up records 5,760/5,760 stress HTTP and 11,518/11,520 UDP attempts, with
@@ -171,8 +173,21 @@ network/lock checks are owner-skipped for v0.8 on both paths, per the
 2026-10-04 instruction “для android пропускаем”. They are recorded as **not
 tested**; only those two Android transition requirements are excluded from the
 v0.8 policy. Apple requirements and measured UDP failures remain unchanged.
-Android active-flow and shared/legacy coverage, calibrated samples and
-schema-4 qualification remain open.
+The [Android legacy and active-flow report](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/device-results/2026-10-04-android-regressions/README.md)
+adds physical VLESS/REALITY, XHTTP H1/H2/H3, WireGuard and Hysteria2 checks,
+plus TCP/UDP cancellation for every new cipher on both TUN paths. Ordinary
+primary traffic records 255 HTTP passes and 254 UDP passes with one UDP timeout.
+The strict primary matrix completes 18/26 TCP and 25/26 UDP cases: WireGuard
+whole-VPN stop intermittently misses remote EOF, while SS2022 retains the
+server-side request for all three ciphers, reproduced by pinned Go-client to
+Go-server controls. All twelve supplemental SS2022 local cancellation/recovery
+controls pass. One Trojan PacketPump UDP recovery fails; four fresh-fixture
+repeats pass without explaining the original failure. Preserve these findings,
+all raw attempts, controller corrections and cleanup. The same installed APKs
+and native/adapter identities were verified; no runtime or SDK pin change was
+made for this follow-up. Review the findings, complete the remaining shared
+scenarios and calibrated samples, and assemble schema-4 evidence before
+claiming full qualification.
 
 
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
