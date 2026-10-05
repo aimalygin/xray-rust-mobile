@@ -56,7 +56,7 @@ compare_file \
   "$core/tests/fixtures/vless-encryption/imports.json" \
   "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
 compare_tree "$core/tests/fixtures/profile-import" "$MOBILE_ROOT/tests/fixtures/profile-import"
-for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer; do
+for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer trojan shadowsocks2022 vmess; do
   compare_file "$core/tests/fixtures/configs/$fixture.json" "$MOBILE_ROOT/tests/fixtures/configs/$fixture.json"
 done
 compare_tree \

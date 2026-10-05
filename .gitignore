@@ -5,8 +5,10 @@ __pycache__/
 Artifacts/
 dist/
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/**/.cxx/
 android/**/build/
 smoke/android/.gradle/
+smoke/android/.kotlin/
 smoke/android/**/build/

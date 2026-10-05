@@ -82,11 +82,114 @@ evidence and publishes its matching release tag, replace the candidate lock with
 verified tag object and release commit/tree before preparing Apple artifacts.
 Do not create an early public core tag simply to satisfy the mobile lock.
 
-The v0.7 gate selects `v07-release-evidence.yml` and the corresponding artifact;
-v0.6 retains its existing workflow. Both bind to the locked core repository,
-commit/tree and an unexpired successful evidence artifact. v0.7 requires fresh
+The version selector chooses `v08-release-evidence.yml` for 0.8,
+`v07-release-evidence.yml` for 0.7 and the existing v0.6 workflow for 0.6.
+Each binds to the locked core repository, commit/tree and an unexpired
+successful evidence artifact. v0.8 requires schema-4 evidence for Trojan,
+Shadowsocks 2022 and VMess on Apple and both Android paths, including the
+required import, network/lifecycle, resource and performance checks. See the
+[v0.8 release readiness checklist](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/v08-release-readiness.md).
+The current development pin is not accepted release evidence, and the 0.7
+exceptions do not carry over. v0.7 requires fresh
 Apple/Android protocol lifecycle coverage, including FileDescriptor and PacketPump.
 Candidate source checks and old device reports do not establish release acceptance.
+
+The [2026-10-03 iPhone candidate report](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-03-iphone17-v08/README.md)
+uses core `de339981` and SDK `0148543`: LAN protocol/cipher checks and bounded
+Trojan/VMess WAN transitions passed. SS2022 WAN passed only with an explicit
+diagnostic fragmentation relay after the original path failed on IPv6 UDP;
+Go controls reproduced the size/DF-dependent loss. The report preserves that
+condition and all failures. It does not close the full Apple/Android or schema-4
+gate, and neither the development core pin nor artifact locks changed.
+
+The [2026-10-04 iPhone follow-up](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-lifecycle-resources/README.md)
+adds startup cancellation, rapid restart, bounded extension CPU/memory and
+legacy controls on iOS 27.0.1. It uses the same release Rust library and vendored
+SDK sources, plus DEBUG-only reference-app instrumentation. The original Trojan
+timeout and two intermittent WireGuard failures are retained alongside passing
+controls; these observations do not close clean legacy/performance acceptance.
+The runtime pin, source snapshots and artifact locks are unchanged.
+
+The [same-device 0.7/0.8 WireGuard comparison](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-wg-baseline/README.md)
+passed three alternating invocations per version and three further Trojan
+lifecycle invocations. Earlier failures did not recur under diagnostics, but
+their causes remain unresolved. The CI relay accounting fix changes only a
+Rust test; neither these results nor that fix require a native runtime repin.
+
+The [direct SS2022 UDP/MTU investigation](https://github.com/aimalygin/xray-rust/blob/753acd1b2ec018a97a167a5ce2c057bd078ce287/docs/device-results/2026-10-04-iphone17-ss2022-mtu/README.md)
+reproduces the loss in Go and on iPhone and localizes the detailed boundary
+failure to the return path after DF replies leave the server. Changing only
+the temporary native Xray UDP socket to permit fragmentation passes 56/56
+Go boundary trials, 40/40 iPhone size trials and direct Wi-Fi/cellular/Wi-Fi
+plus lock/wake, without a relay. A persistent production-path configuration
+and the exact dropping hop remain unvalidated. This adds DEBUG reference-app
+instrumentation and evidence only; the runtime pin, canonical source snapshots
+and artifact locks remain unchanged. Failed default controls remain recorded.
+
+The [ordered reliability/deployment follow-up](https://github.com/aimalygin/xray-rust/blob/7aaf9a5bd07d174145aaf004530402483bf0b57f/docs/device-results/2026-10-04-iphone17-reliability-deployment/README.md)
+passes five further WireGuard smoke and five Trojan lifecycle invocations, with
+210 TCP / 140 UDP echoes matched at the backend. Earlier failure causes remain
+unresolved. An optional server-only SS2022 startup hook reapplies the socket
+policy on five starts including two restarts, without a resident helper. WAN
+controls cover all three ciphers but retain failed trials: ChaCha Go 40/44,
+AES-128 iPhone 38/40, and a later AES-128 Go 43/44 including a lost unfragmented
+reply. AES-256 Go 44/44 and iPhone 40/40 pass; ordinary AES-128 iPhone smoke also
+passes. This validates restart persistence, not universal WAN reliability or
+production deployment. No native/SDK source, core pin or artifact lock changes
+are required; full device and schema-4 acceptance remain open.
+
+On 2026-10-04 the owner deferred further SS2022 UDP-loss investigation and
+directed work to continue with other acceptance. Preserve the failures and path
+conditions as known limitations. The [evidence assembly inventory](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/v08-release-evidence.md)
+lists remaining physical Android, Apple shared-scenario and calibrated sample
+work. No validator exception, native repin or release authorization is implied.
+Before the regression-report changes, ordinary CI passed core `3c7b162`
+([run](https://github.com/aimalygin/xray-rust/actions/runs/37253541471)) and SDK
+`90355c5` ([run](https://github.com/aimalygin/xray-rust-mobile/actions/runs/37253545430));
+these source checks are separate from device/release qualification.
+
+The Android PacketPump follow-up advances the development source pin to
+`0d788564d85505ba0e2778320a561bc3d6500346` (tree
+`f71235a8b17a5e5e88809ada36ce4efc19f29b00`) and synchronizes `XrayVpnService`.
+An empty nonblocking TUN read now waits for readiness with a bounded `Os.poll`
+instead of spinning. Packet buffers and the public API are unchanged. Earlier
+Android/iPhone measurements retain native revision `de339981`; the Android
+follow-up uses that exact native/JNI binary with a separately hashed updated
+Kotlin adapter. These observations are not an exact-new-pin release manifest.
+Reassess candidate evidence after the adapter change; artifact locks remain
+unprepared and no publication is authorized.
+
+The [Samsung Android report](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/device-results/2026-10-04-android-v08/README.md)
+retains both baseline and corrected-adapter runs. Each functional matrix passes
+14/14 combinations, with 182 HTTP and 182 nonce-checked UDP checks. The
+follow-up records 5,760/5,760 stress HTTP and 11,518/11,520 UDP attempts, with
+all twelve bounded RSS/thread criteria passing. Maximum recovery-median RSS
+growth is 7.61 MiB and no thread count grows. PacketPump recovery CPU is about
+2.6–3.1% of one core after the readiness fix, versus about 101% before.
+SS2022 AES-128/AES-256 PP timeouts remain unexplained; fixing idle CPU does not
+resolve these packet losses. All original failures and exact native/APK hashes
+remain published, along with replay scripts and verified cleanup. Android
+network/lock checks are owner-skipped for v0.8 on both paths, per the
+2026-10-04 instruction “для android пропускаем”. They are recorded as **not
+tested**; only those two Android transition requirements are excluded from the
+v0.8 policy. Apple requirements and measured UDP failures remain unchanged.
+The [Android legacy and active-flow report](https://github.com/aimalygin/xray-rust/blob/1388c613971c8785f22107e2fac6be85f956e388/docs/device-results/2026-10-04-android-regressions/README.md)
+adds physical VLESS/REALITY, XHTTP H1/H2/H3, WireGuard and Hysteria2 checks,
+plus TCP/UDP cancellation for every new cipher on both TUN paths. Ordinary
+primary traffic records 255 HTTP passes and 254 UDP passes with one UDP timeout.
+The strict primary matrix completes 18/26 TCP and 25/26 UDP cases: WireGuard
+whole-VPN stop intermittently misses remote EOF, while SS2022 retains the
+server-side request for all three ciphers, reproduced by pinned Go-client to
+Go-server controls. All twelve supplemental SS2022 local cancellation/recovery
+controls pass. One Trojan PacketPump UDP recovery fails; four fresh-fixture
+repeats pass without explaining the original failure. Preserve these findings,
+all raw attempts, controller corrections and cleanup. The same installed APKs
+and native/adapter identities were verified; no runtime or SDK pin change was
+made for this follow-up. Review the findings, complete the remaining shared
+scenarios and calibrated samples, and assemble schema-4 evidence before
+claiming full qualification.
+
+
 For direct stable 0.7.0, the core validator accepts its checksum-pinned measured
 archive only with the reviewed metadata-only promotion and explicit owner
 decisions: Android cellular was not tested, and the investigated WireGuard

@@ -4,7 +4,12 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-SDK version: **0.7.0**, with Hysteria2/WireGuard support and C ABI 1.7.
+Development branch: **0.8.0-rc.1** preparation, with Trojan, Shadowsocks 2022,
+VMess AEAD and C ABI 1.8. Use local artifacts for this untagged candidate;
+publication remains blocked until core release evidence and canonical artifact
+checks pass. Shadowsocks AEAD-2017 and legacy VMess are excluded.
+
+Published SDK version: **0.7.0**, with Hysteria2/WireGuard support and C ABI 1.7.
 See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
 for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#070---2026-09-27)
 for the release scope. The device evidence retains its measured source and the
@@ -318,6 +323,21 @@ notification/channel, target-SDK-specific foreground service policy, lifecycle
 commands, and user-visible error handling. Call `startForeground` promptly;
 Android permits `systemExempted` only while the app is configured as an active
 VPN, otherwise startup can fail with `ForegroundServiceTypeNotAllowedException`.
+
+## v0.8 candidate profile imports
+
+The candidate adds `XrayProfileFormat.trojan`, `.shadowsocks2022` and `.vmess`
+in Swift, and `Trojan`, `Shadowsocks2022` and `Vmess` in Kotlin. Call
+`XrayProfileImporter.profile` with the selected format and store the resulting
+config in the host's secure profile store. Check `supportsProfileImport` on the
+linked core's FFI information before offering a format to the user.
+
+Trojan accepts `trojan://`; Shadowsocks 2022 accepts SIP002 `ss://` with the
+three `2022-blake3-*` methods; VMess accepts AEAD profiles with zero/absent
+`alterId`. Unknown or excluded methods fail import. The importer works offline;
+loading a profile does not start a VPN. See the core's
+[compatibility contract](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/config-compatibility.md)
+for transport combinations, resource limits and SS2022 reconnect behavior.
 
 ## Build locally
 
