@@ -9,9 +9,12 @@ Candidate preparation; artifacts are not yet published.
 - Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
   DNS bootstrap and tunnel integration through C ABI 1.11.
 - Update the development pin to final PR #42 commit
-  `342de0512f3b2aea37e8a890eec1d5f8ab08d1b8`. Expose typed outbound probes,
+  `ee55398d436f22c1fd2b5d2ed3bc467cc03d8b0b`. Expose typed outbound probes,
   Kotlin carrier rebind, Hysteria2 limits and opt-in TUN admission. The pinned
   parser supports Salamander, UDP hopping and bounded ClientHello fragmentation.
+- Expose Hysteria2 stream limits and TUN admission through the ready Apple
+  PacketTunnelProvider, with immutable per-start host settings for both TUN
+  backends and unchanged defaults.
 - Package canonical JNI callback keep rules alongside the SDK rules, verify
   them after consumer minification, and exercise the bridge against the pinned
   native core in CI. Keep native release profiles and dependency locks unchanged.

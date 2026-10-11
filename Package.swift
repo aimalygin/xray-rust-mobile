@@ -92,7 +92,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SdkConsumerTests",
-            dependencies: ["XrayMobileAdapter", "XrayAppleShared"],
+            dependencies: ["XrayMobileAdapter", "XrayAppleShared", "XrayAppleTunnel"],
             path: "tests/apple"
         ),
     ]

@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 import XrayMobileAdapter
 import XrayAppleShared
+import XrayAppleTunnel
 
 // Use public imports only: this exercises the packaged SDK, rather than
 // reaching into adapter internals with @testable.
@@ -49,5 +50,21 @@ final class SdkConsumerTests: XCTestCase {
         try XrayMobileDNSPreflight.validate(config)
         _ = try XrayCore(configJSON: config)
         XCTAssertThrowsError(try XrayCore(configJSON: config.replacingOccurrences(of: "\"length\":37", with: "\"length\":0")))
+    }
+}
+
+// Compilation verifies external subclass access. Instantiating NEProvider in an
+// unsigned XCTest process requires Apple's Network Extension entitlement; the
+// canonical tests exercise the provider's native factory with both I/O backends.
+@available(macOS 13.0, *)
+private final class ConsumerPacketTunnelProvider: XrayPacketTunnelProvider {
+    override func hysteriaStreamLimits() throws -> XrayHysteriaStreamLimits? {
+        try .init(maxTcpStreams: 128, maxUdpSessions: 64)
+    }
+
+    override func tunAdmissionOptions() throws -> XrayTunAdmissionOptions? {
+        try .init(timeoutMilliseconds: 100, failOpen: false) { flow in
+            flow.addressFamily == 4
+        }
     }
 }

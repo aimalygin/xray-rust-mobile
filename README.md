@@ -49,7 +49,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.8.0-rc.1` (unpublished development pin) | PR #42 | `342de0512f3b2aea37e8a890eec1d5f8ab08d1b8` | `1.11` |
+| `0.8.0-rc.1` (unpublished development pin) | PR #42 | `ee55398d436f22c1fd2b5d2ed3bc467cc03d8b0b` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
 | `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
@@ -95,9 +95,36 @@ to register this policy after VPN establishment. Some devices report an unknown
 UID even for permitted, explicitly bound TCP sockets; test that case before
 opting into strict UID enforcement.
 
-Custom Hysteria2 limits and Apple admission are available when the host creates
-`XrayCore` directly; the supplied `XrayPacketTunnelProvider` does not expose
-these options. Apple does not provide the Android UID lookup helper.
+The supplied `XrayPacketTunnelProvider` exposes both options through overridable
+`hysteriaStreamLimits()` and `tunAdmissionOptions()` methods:
+
+```swift
+import XrayAppleTunnel
+import XrayMobileAdapter
+
+final class PacketTunnelProvider: XrayPacketTunnelProvider {
+    override func hysteriaStreamLimits() throws -> XrayHysteriaStreamLimits? {
+        try .init(maxTcpStreams: 128, maxUdpSessions: 64)
+    }
+
+    override func tunAdmissionOptions() throws -> XrayTunAdmissionOptions? {
+        try .init(timeoutMilliseconds: 100, failOpen: false) { flow in
+            // Example policy: allow only IPv4 destinations. Replace with host policy.
+            flow.addressFamily == 4
+        }
+    }
+}
+```
+
+These hooks run once per configured start, before DNS bootstrap and network
+settings; a thrown error fails startup. Their settings remain fixed until restart
+and apply to both direct utun fd and packetFlow backends. Default implementations
+return `nil`, preserving the core's 64/32 limits and disabled admission path.
+Admission callbacks may run concurrently and finish after tunnel shutdown: avoid
+retaining the provider or calling lifecycle methods from a callback. Explicit
+denial remains denied with `failOpen: true`; queue/buffer exhaustion also drops.
+These are typed host policies, not additional Xray JSON/provider dictionary keys.
+Apple does not provide the Android UID lookup helper.
 
 Salamander, UDP port hopping and first-ClientHello fragmentation use the pinned
 core's JSON configuration. Hysteria2 profile import also preserves
@@ -107,7 +134,7 @@ arbitrary UDP. These features stay disabled unless configured. Probe calls are
 blocking; call them off the main thread. Capability/version checks guard the
 optional host APIs; distribute the matched native library and adapters together.
 
-The pin includes [core compatibility and performance evidence](https://github.com/aimalygin/xray-rust/blob/342de0512f3b2aea37e8a890eec1d5f8ab08d1b8/docs/benchmarks/results/2026-10-10-pr42-issues/README.md),
+The pin includes [core compatibility and performance evidence](https://github.com/aimalygin/xray-rust/blob/ee55398d436f22c1fd2b5d2ed3bc467cc03d8b0b/docs/benchmarks/results/2026-10-10-pr42-issues/README.md),
 including pinned Xray-core and native Hysteria interoperability. SDK sync keeps
 the canonical adapters byte-for-byte and retains release build profiles and
 dependency locks. Host measurements are not a new physical-device acceptance

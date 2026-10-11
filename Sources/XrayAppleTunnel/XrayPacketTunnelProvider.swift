@@ -534,6 +534,32 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         $0.stop()
     }
 
+    /// Override to bound concurrent streams on each Hysteria2 QUIC session.
+    /// Called once per configured start, before DNS bootstrap and network settings.
+    /// Returning nil preserves the core defaults (64 TCP streams / 32 UDP sessions).
+    /// Throwing fails startup; settings are immutable for the running tunnel.
+    open func hysteriaStreamLimits() throws -> XrayHysteriaStreamLimits? { nil }
+
+    /// Override to opt into host admission for new TCP/UDP flows in either TUN backend.
+    /// Called once per configured start, before DNS bootstrap and network settings.
+    /// Returning nil preserves the original path without admission callbacks.
+    /// The callback runs concurrently on bounded native workers, not the packet loop;
+    /// keep it short and never call core/provider lifecycle methods from it.
+    /// Avoid retaining the provider in the callback. A timeout bounds the decision,
+    /// not callback execution. Apple does not supply an Android-style UID lookup.
+    open func tunAdmissionOptions() throws -> XrayTunAdmissionOptions? { nil }
+
+    static func resolvingHostOptions(
+        _ config: ResolvedConfig,
+        hysteriaStreamLimits: () throws -> XrayHysteriaStreamLimits?,
+        tunAdmissionOptions: () throws -> XrayTunAdmissionOptions?
+    ) throws -> ResolvedConfig {
+        var resolved = config
+        resolved.hysteriaStreamLimits = try hysteriaStreamLimits()
+        resolved.tunAdmission = try tunAdmissionOptions()
+        return resolved
+    }
+
     open override func startTunnel(
         options: [String: NSObject]?,
         completionHandler: @escaping (Error?) -> Void
@@ -563,7 +589,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             completionHandler(error)
             return
         }
-        guard let resolvedConfig else {
+        guard var resolvedConfig else {
             if lifecycle.cancelStart(lifecycleToken) {
                 XrayAppleLog.configureFileLogging(directory: nil)
             }
@@ -593,6 +619,20 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 "Invalid explicit DNS server configuration"
             )
             completionHandler(XrayPacketTunnelProviderError.invalidDNSConfiguration)
+            return
+        }
+        do {
+            resolvedConfig = try Self.resolvingHostOptions(
+                resolvedConfig,
+                hysteriaStreamLimits: hysteriaStreamLimits,
+                tunAdmissionOptions: tunAdmissionOptions
+            )
+        } catch {
+            if lifecycle.cancelStart(lifecycleToken) {
+                XrayAppleLog.configureFileLogging(directory: nil)
+            }
+            XrayAppleLog.error("PacketTunnelProvider", "Invalid host runtime options")
+            completionHandler(error)
             return
         }
         startDNSBootstrapPreflight(
@@ -1055,6 +1095,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         var tunRuntimeProfile: XrayTunRuntimeProfileSetting
         var startupProbeConfiguration: XrayPacketTunnelStartupProbeConfiguration
         var dnsConfiguration: XrayPacketTunnelDNSConfiguration
+        var hysteriaStreamLimits: XrayHysteriaStreamLimits? = nil
+        var tunAdmission: XrayTunAdmissionOptions? = nil
         var geodataSelection = GeodataSelection(
             directory: Bundle.main.resourceURL,
             policy: .fallbackToDefaults
@@ -2686,7 +2728,9 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 geodataSearchDirectory: resolvedConfig.geodataSelection.directory,
                 geodataSearchPolicy: resolvedConfig.geodataSelection.policy,
                 startupProbe: resolvedConfig.startupProbeConfiguration.options,
-                fileLogDirectory: diagnosticLogDirectory
+                fileLogDirectory: diagnosticLogDirectory,
+                hysteriaStreamLimits: resolvedConfig.hysteriaStreamLimits,
+                tunAdmission: resolvedConfig.tunAdmission
             )
         }
         return try XrayCore(
@@ -2699,7 +2743,9 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             geodataSearchDirectory: resolvedConfig.geodataSelection.directory,
             geodataSearchPolicy: resolvedConfig.geodataSelection.policy,
             startupProbe: resolvedConfig.startupProbeConfiguration.options,
-            fileLogDirectory: diagnosticLogDirectory
+            fileLogDirectory: diagnosticLogDirectory,
+            hysteriaStreamLimits: resolvedConfig.hysteriaStreamLimits,
+            tunAdmission: resolvedConfig.tunAdmission
         )
     }
 
