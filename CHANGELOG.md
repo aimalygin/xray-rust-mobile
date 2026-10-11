@@ -7,7 +7,14 @@
 Candidate preparation; artifacts are not yet published.
 
 - Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
-  DNS bootstrap and tunnel integration through C ABI 1.8.
+  DNS bootstrap and tunnel integration through C ABI 1.11.
+- Update the development pin to final PR #42 commit
+  `342de0512f3b2aea37e8a890eec1d5f8ab08d1b8`. Expose typed outbound probes,
+  Kotlin carrier rebind, Hysteria2 limits and opt-in TUN admission. The pinned
+  parser supports Salamander, UDP hopping and bounded ClientHello fragmentation.
+- Package canonical JNI callback keep rules alongside the SDK rules, verify
+  them after consumer minification, and exercise the bridge against the pinned
+  native core in CI. Keep native release profiles and dependency locks unchanged.
 - Pin the exact development core commit and synchronize the canonical
   Swift/Kotlin adapters, C header and protocol fixtures.
 - Align the core's reported version with SDK `0.8.0-rc.1` before candidate

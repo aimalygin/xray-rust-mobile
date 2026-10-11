@@ -7,6 +7,10 @@ import org.xrayrust.mobile.XrayImportedProfile
 import org.xrayrust.mobile.XrayProfileFormat
 import org.xrayrust.mobile.XrayProfileImporter
 import org.xrayrust.mobile.supportsProfileImport
+import org.xrayrust.mobile.XrayHysteriaStreamLimits
+import org.xrayrust.mobile.XrayTunAdmissionOptions
+import org.xrayrust.mobile.XrayTunFlowAdmission
+import org.xrayrust.mobile.XrayOutboundProbeResult
 
 class SdkCompileSmoke(private val core: XrayCore) {
     fun selectedProfile(): XrayTunRuntimeProfile = XrayTunRuntimeProfile.Mobile
@@ -21,6 +25,18 @@ class SdkCompileSmoke(private val core: XrayCore) {
 
     fun importClient(text: String, format: XrayProfileFormat): XrayImportedProfile =
         XrayProfileImporter.profile(text, format)
+
+    fun createWithHostPolicy(config: String): XrayCore = XrayCore.create(
+        config,
+        hysteriaStreamLimits = XrayHysteriaStreamLimits(128, 64),
+        tunAdmission = XrayTunAdmissionOptions(XrayTunFlowAdmission { flow ->
+            flow.protocol == 6 || flow.protocol == 17
+        }),
+    )
+
+    fun rebindCarriers(): Pair<Long, Long> = core.rebindHysteria() to core.rebindWireGuard()
+
+    fun probe(url: String): XrayOutboundProbeResult = core.probeOutboundUrl(url)
 
     fun stop() {
         core.stop()

@@ -5,7 +5,7 @@
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
 Development branch: **0.8.0-rc.1** preparation, with Trojan, Shadowsocks 2022,
-VMess AEAD and C ABI 1.8. Use local artifacts for this untagged candidate;
+VMess AEAD and C ABI 1.11. Use local artifacts for this untagged candidate;
 publication remains blocked until core release evidence and canonical artifact
 checks pass. Shadowsocks AEAD-2017 and legacy VMess are excluded.
 
@@ -49,6 +49,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.8.0-rc.1` (unpublished development pin) | PR #42 | `342de0512f3b2aea37e8a890eec1d5f8ab08d1b8` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
 | `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
@@ -72,6 +73,46 @@ For releases that change the core or its adapters, the Mobile SDK version stays
 aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
 respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
+
+## New APIs in the development SDK
+
+Both adapters expose Hysteria2/WireGuard rebind, outbound URL probes,
+`XrayHysteriaStreamLimits` and `XrayTunAdmissionOptions` through `XrayCore`.
+Supply limits and admission when creating the core, before loading its config.
+The default Hysteria2 limits remain 64 TCP streams and 32 UDP sessions per QUIC
+session; explicit limits accept 1–256 and 1–128 respectively. Rebind returns the
+number of accepted/coalesced requests, not a network-change completion signal.
+The Android host owns its network-change observer.
+
+TUN admission is opt-in and runs once per flow on bounded native workers, off
+the packet loop. Callbacks must return promptly and must not call core lifecycle
+methods. Timeout (1–5000 ms) bounds the decision, not callback execution. Keep
+policy state safe for concurrent callbacks. With admission disabled there are
+no per-packet host callbacks. Kotlin's `XrayAndroidUidAdmission` requires Android
+10+ and an active VPN; unknown owners and lookup errors deny by default. Keep
+`VpnService.Builder` app rules as well. Override `XrayVpnService.tunAdmissionOptions()`
+to register this policy after VPN establishment. Some devices report an unknown
+UID even for permitted, explicitly bound TCP sockets; test that case before
+opting into strict UID enforcement.
+
+Custom Hysteria2 limits and Apple admission are available when the host creates
+`XrayCore` directly; the supplied `XrayPacketTunnelProvider` does not expose
+these options. Apple does not provide the Android UID lookup helper.
+
+Salamander, UDP port hopping and first-ClientHello fragmentation use the pinned
+core's JSON configuration. Hysteria2 profile import also preserves
+`obfs=salamander`, `obfs-password` and `mport`. Fragmentation supports the core's
+bounded TCP TLS/REALITY/Vision configurations; it does not apply to QUIC or
+arbitrary UDP. These features stay disabled unless configured. Probe calls are
+blocking; call them off the main thread. Capability/version checks guard the
+optional host APIs; distribute the matched native library and adapters together.
+
+The pin includes [core compatibility and performance evidence](https://github.com/aimalygin/xray-rust/blob/342de0512f3b2aea37e8a890eec1d5f8ab08d1b8/docs/benchmarks/results/2026-10-10-pr42-issues/README.md),
+including pinned Xray-core and native Hysteria interoperability. SDK sync keeps
+the canonical adapters byte-for-byte and retains release build profiles and
+dependency locks. Host measurements are not a new physical-device acceptance
+campaign; the report retains unexplained UDP timeouts and existing release
+gates. No artifacts are published by updating this development pin.
 
 ## Apple platforms with Swift Package Manager
 

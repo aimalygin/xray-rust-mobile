@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         minSdk = 24
-        consumerProguardFiles("consumer-rules.pro")
+        consumerProguardFiles("consumer-rules.pro", "upstream-consumer-rules.pro")
 
         ndk {
             abiFilters += setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
@@ -34,6 +34,9 @@ android {
     sourceSets {
         getByName("main") {
             jniLibs.srcDir(file("$xrayFfiAndroidDir/jniLibs"))
+        }
+        getByName("test") {
+            java.srcDir("../../tests/android")
         }
     }
 
@@ -147,5 +150,15 @@ afterEvaluate {
             useInMemoryPgpKeys(signingKey, signingPassword)
             sign(publishing.publications["release"])
         }
+    }
+}
+
+// Load the SDK's bridge and pinned core for host JNI tests; Android binaries
+// cannot be loaded by the host JVM used for ordinary unit tests.
+tasks.withType<Test>().configureEach {
+    providers.gradleProperty("xrayNativeImportLibraryPath").orNull?.let { path ->
+        systemProperty("java.library.path", path)
+        systemProperty("xray.test.nativeImport", "true")
+        outputs.upToDateWhen { false }
     }
 }

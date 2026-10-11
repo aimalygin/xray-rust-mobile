@@ -65,5 +65,9 @@ cp \
   "$core/crates/xray-ffi/include/module.modulemap" \
   "$MOBILE_ROOT/Sources/XrayRustFFI/include/module.modulemap"
 
+cp \
+  "$core/platform/android/xraymobile/consumer-rules.pro" \
+  "$MOBILE_ROOT/android/xraymobile/upstream-consumer-rules.pro"
+
 "$SCRIPT_DIR/verify-source-sync.sh"
-echo "synced adapters from $XRAY_RUST_TAG"
+echo "synced adapters from ${XRAY_RUST_TAG:-$XRAY_RUST_COMMIT}"
