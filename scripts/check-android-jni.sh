@@ -33,7 +33,41 @@ native_dir="$(cd "$CARGO_TARGET_DIR/debug" && pwd -P)"
 "$MOBILE_ROOT/android/gradlew" -p "$MOBILE_ROOT/android" \
   :xraymobile:testDebugUnitTest \
   "-PxrayNativeImportLibraryPath=$test_root:$native_dir" \
+  "-PxrayNativeImportFixtureRoot=$core" \
   --tests '*XrayProfileImporter*' --tests '*XrayOutboundProbeNative*' \
   --tests '*XrayHysteriaNative*' --tests '*XrayTunAdmissionNative*' \
   --tests '*SdkTransportOptionsNative*' \
   --dependency-verification strict --no-daemon --console=plain "$@"
+
+# A successful Gradle task alone is insufficient: native tests may be skipped
+# when their opt-in property is lost. Only the external Hysteria fixture is optional.
+python3 - "$MOBILE_ROOT/android/xraymobile/build/test-results/testDebugUnitTest" <<'PY'
+import os
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+required = {"XrayProfileImporterNativeTest", "XrayOutboundProbeNativeTest",
+            "XrayHysteriaNativeTest", "XrayTunAdmissionNativeTest",
+            "SdkTransportOptionsNativeTest"}
+seen = set()
+passed = skipped = 0
+for path in Path(sys.argv[1]).glob("TEST-*.xml"):
+    suite = ET.parse(path).getroot()
+    name = suite.attrib["name"].rsplit(".", 1)[-1]
+    if name not in required:
+        continue
+    cases = suite.findall("testcase")
+    assert cases, f"empty native test suite: {name}"
+    seen.add(name)
+    for case in cases:
+        assert case.find("failure") is None and case.find("error") is None, case.attrib
+        if case.find("skipped") is not None:
+            assert name == "XrayHysteriaNativeTest" and case.attrib["name"] == "liveRebindRetainsTcpThroughActualJni", case.attrib
+            assert not os.environ.get("XRAY_TEST_HYSTERIA_CONFIG"), "configured live fixture was skipped"
+            skipped += 1
+        else:
+            passed += 1
+assert seen == required, f"missing native suites: {required - seen}"
+print(f"Verified host JNI native tests: {passed} passed, {skipped} optional live-fixture skips")
+PY

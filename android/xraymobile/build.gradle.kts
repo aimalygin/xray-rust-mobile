@@ -159,6 +159,9 @@ tasks.withType<Test>().configureEach {
     providers.gradleProperty("xrayNativeImportLibraryPath").orNull?.let { path ->
         systemProperty("java.library.path", path)
         systemProperty("xray.test.nativeImport", "true")
+        // Canonical native-import tests locate fixtures from the core workspace.
+        // verify-source-sync.sh checks that SDK fixture copies are identical.
+        workingDir(file(providers.gradleProperty("xrayNativeImportFixtureRoot").get()))
         outputs.upToDateWhen { false }
     }
 }

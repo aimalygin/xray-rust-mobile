@@ -41,7 +41,7 @@ final class SdkConsumerTests: XCTestCase {
 
     func testFragmentConfigurationReachesNativeValidation() throws {
         let config = """
-        {"inbounds":[{"protocol":"tun"}],"outbounds":[{"protocol":"trojan",
+        {"dns":{"servers":["127.0.0.1"]},"inbounds":[{"protocol":"tun"}],"outbounds":[{"protocol":"trojan",
           "settings":{"address":"127.0.0.1","port":443,"password":"synthetic-test"},
           "streamSettings":{"network":"raw","security":"tls","tlsSettings":{"serverName":"example.test"},
             "finalmask":{"tcp":[{"type":"fragment","settings":{"packets":"tlshello","length":37,"delay":0}}]}}}]}
