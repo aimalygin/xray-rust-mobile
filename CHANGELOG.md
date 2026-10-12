@@ -9,12 +9,13 @@ Stable release preparation; artifacts are not yet published.
 - Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
   DNS bootstrap and tunnel integration through C ABI 1.11.
 - Update the development pin to final PR #42 commit
-  `34df2457ab6cdcd897455961c77db933e27ff2a9`. Expose typed outbound probes,
+  `fcce4be2771c1fb3f11e9503741d39a4d8df314e`. Expose typed outbound probes,
   Kotlin carrier rebind, Hysteria2 limits and opt-in TUN admission. The pinned
   parser supports Salamander, UDP hopping, bounded ClientHello fragmentation and
   FinalMask UDP noise for Hysteria2/XHTTP H3. Add public Swift/JNI native-load
   checks for accepted and rejected noise settings. Linux TPROXY belongs to
-  the core; mobile platforms continue using TUN.
+  the core; mobile platforms continue using TUN. UDP noise state survives
+  Hysteria hop/rebind, avoiding repeated preludes and delays within one session.
 - Expose Hysteria2 stream limits and TUN admission through the ready Apple
   PacketTunnelProvider, with immutable per-start host settings for both TUN
   backends and unchanged defaults.
