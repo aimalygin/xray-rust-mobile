@@ -56,4 +56,11 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
   done
 done
 
+# These callbacks are resolved by name from JNI and must survive R8. Checking
+# the actual consumer mapping catches missing AAR consumer rules even when the
+# unminified library and its JVM tests pass.
+mapping="$MOBILE_ROOT/smoke/android/consumer/build/outputs/mapping/release/mapping.txt"
+[[ -f "$mapping" ]] || die "minified consumer mapping was not produced"
+python3 "$SCRIPT_DIR/verify-jni-mapping.py" "$mapping"
+
 echo "verified minified Android consumer: $apk"

@@ -135,6 +135,9 @@ jobs:
       - name: Build, test, and stage Maven module
         run: scripts/build-android.sh
 
+      - name: Exercise mobile APIs through host JNI
+        run: scripts/check-android-jni.sh
+
       - name: Resolve SDK from the staged Maven repository
         run: scripts/check-android-consumer.sh
 

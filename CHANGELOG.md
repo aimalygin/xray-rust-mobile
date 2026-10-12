@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-10-11
+
+Stable release preparation; artifacts are not yet published.
+
+- Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
+  DNS bootstrap and tunnel integration through C ABI 1.11.
+- Update the development pin to final PR #42 commit
+  `fcce4be2771c1fb3f11e9503741d39a4d8df314e`. Expose typed outbound probes,
+  Kotlin carrier rebind, Hysteria2 limits and opt-in TUN admission. The pinned
+  parser supports Salamander, UDP hopping, bounded ClientHello fragmentation and
+  FinalMask UDP noise for Hysteria2/XHTTP H3. Add public Swift/JNI native-load
+  checks for accepted and rejected noise settings. Linux TPROXY belongs to
+  the core; mobile platforms continue using TUN. UDP noise state survives
+  Hysteria hop/rebind, avoiding repeated preludes and delays within one session.
+- Expose Hysteria2 stream limits and TUN admission through the ready Apple
+  PacketTunnelProvider, with immutable per-start host settings for both TUN
+  backends and unchanged defaults.
+- Package canonical JNI callback keep rules alongside the SDK rules, verify
+  them after consumer minification, and exercise the bridge against the pinned
+  native core in CI. Keep native release profiles and dependency locks unchanged.
+- Pin the exact development core commit and synchronize the canonical
+  Swift/Kotlin adapters, C header and protocol fixtures.
+- Align the core's reported version with SDK `0.8.0-rc.1` before candidate
+  acceptance; retain the unprepared artifact locks and publication guards.
+- Include bounded VMess ChaCha duplex scheduling for direct raw-TCP SOCKS
+  traffic and wait for connection cleanup when stopping the core. The paired
+  host improvement and its memory/latency tradeoffs are documented upstream;
+  they do not establish TUN or mobile-device performance.
+- Keep Shadowsocks AEAD-2017 and legacy VMess authentication excluded.
+- Require separate v0.8 device/performance evidence and matching artifacts;
+  the published 0.7 owner exceptions do not carry over.
+
+- Record the owner-approved deferral of further iPhone Hysteria startup
+  investigation and calibrated 5% performance confirmation for 0.8.0.
+  Preserve failed attempts and all unrelated publication/artifact checks.
+
 ## 0.7.0 - 2026-09-27
 
 Stable channel with Hysteria2/WireGuard support. The measured device archive

@@ -46,7 +46,7 @@ cp "$core/tests/fixtures/vless-encryption/imports.json" \
   "$MOBILE_ROOT/tests/fixtures/vless-encryption/imports.json"
 sync_tree "$core/tests/fixtures/profile-import" "$MOBILE_ROOT/tests/fixtures/profile-import"
 mkdir -p "$MOBILE_ROOT/tests/fixtures/configs"
-for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer; do
+for fixture in hysteria2 wireguard wireguard-psk wireguard-multi-peer trojan shadowsocks2022 vmess; do
   cp "$core/tests/fixtures/configs/$fixture.json" "$MOBILE_ROOT/tests/fixtures/configs/$fixture.json"
 done
 sync_tree \
@@ -65,5 +65,9 @@ cp \
   "$core/crates/xray-ffi/include/module.modulemap" \
   "$MOBILE_ROOT/Sources/XrayRustFFI/include/module.modulemap"
 
+cp \
+  "$core/platform/android/xraymobile/consumer-rules.pro" \
+  "$MOBILE_ROOT/android/xraymobile/upstream-consumer-rules.pro"
+
 "$SCRIPT_DIR/verify-source-sync.sh"
-echo "synced adapters from $XRAY_RUST_TAG"
+echo "synced adapters from ${XRAY_RUST_TAG:-$XRAY_RUST_COMMIT}"
