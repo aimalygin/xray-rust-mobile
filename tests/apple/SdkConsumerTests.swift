@@ -40,6 +40,29 @@ final class SdkConsumerTests: XCTestCase {
         _ = try XrayCore(configJSON: profile.configJSON)
     }
 
+    func testUdpNoiseReachesBothQuicCarriersThroughPackagedFFI() throws {
+        let carriers = [
+            #"""
+            {"protocol":"hysteria","settings":{"version":2,"address":"127.0.0.1","port":443},
+             "streamSettings":{"network":"hysteria","security":"tls","tlsSettings":{"serverName":"example.test"},
+              "hysteriaSettings":{"version":2,"auth":"synthetic"},"finalmask":{"udp":[
+               {"type":"noise","settings":{"noise":[{"rand":"16-24","delay":1}]}},
+               {"type":"salamander","settings":{"password":"synthetic"}}]}}}
+            """#,
+            #"""
+            {"protocol":"trojan","settings":{"address":"127.0.0.1","port":443,"password":"synthetic"},
+             "streamSettings":{"network":"xhttp","security":"tls","tlsSettings":{"serverName":"example.test","alpn":["h3"]},
+              "finalmask":{"udp":[{"type":"noise","settings":{"noise":[{"rand":"16-24","delay":1}]}}]}}}
+            """#
+        ]
+        for outbound in carriers {
+            let config = #"{"dns":{"servers":["127.0.0.1"]},"inbounds":[{"protocol":"tun"}],"outbounds":["# + outbound + "]}"
+            try XrayMobileDNSPreflight.validate(config)
+            _ = try XrayCore(configJSON: config)
+            XCTAssertThrowsError(try XrayCore(configJSON: config.replacingOccurrences(of: #""rand":"16-24""#, with: #""rand":4097"#)))
+        }
+    }
+
     func testFragmentConfigurationReachesNativeValidation() throws {
         let config = """
         {"dns":{"servers":["127.0.0.1"]},"inbounds":[{"protocol":"tun"}],"outbounds":[{"protocol":"trojan",

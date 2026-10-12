@@ -2,16 +2,19 @@
 
 ## Unreleased
 
-## 0.8.0-rc.1 - 2026-09-30
+## 0.8.0 - 2026-10-11
 
-Candidate preparation; artifacts are not yet published.
+Stable release preparation; artifacts are not yet published.
 
 - Add Trojan, Shadowsocks 2022 and VMess AEAD imports, capability discovery,
   DNS bootstrap and tunnel integration through C ABI 1.11.
 - Update the development pin to final PR #42 commit
-  `ee55398d436f22c1fd2b5d2ed3bc467cc03d8b0b`. Expose typed outbound probes,
+  `34df2457ab6cdcd897455961c77db933e27ff2a9`. Expose typed outbound probes,
   Kotlin carrier rebind, Hysteria2 limits and opt-in TUN admission. The pinned
-  parser supports Salamander, UDP hopping and bounded ClientHello fragmentation.
+  parser supports Salamander, UDP hopping, bounded ClientHello fragmentation and
+  FinalMask UDP noise for Hysteria2/XHTTP H3. Add public Swift/JNI native-load
+  checks for accepted and rejected noise settings. Linux TPROXY belongs to
+  the core; mobile platforms continue using TUN.
 - Expose Hysteria2 stream limits and TUN admission through the ready Apple
   PacketTunnelProvider, with immutable per-start host settings for both TUN
   backends and unchanged defaults.
@@ -29,6 +32,10 @@ Candidate preparation; artifacts are not yet published.
 - Keep Shadowsocks AEAD-2017 and legacy VMess authentication excluded.
 - Require separate v0.8 device/performance evidence and matching artifacts;
   the published 0.7 owner exceptions do not carry over.
+
+- Record the owner-approved deferral of further iPhone Hysteria startup
+  investigation and calibrated 5% performance confirmation for 0.8.0.
+  Preserve failed attempts and all unrelated publication/artifact checks.
 
 ## 0.7.0 - 2026-09-27
 

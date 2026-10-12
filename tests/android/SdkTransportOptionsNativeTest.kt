@@ -23,6 +23,27 @@ class SdkTransportOptionsNativeTest {
         XrayCore.create(profile.configJson).use { }
     }
 
+    @Test fun udpNoiseReachesBothQuicCarriersThroughNativeLoad() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        val carriers = listOf(
+            """{"protocol":"hysteria","settings":{"version":2,"address":"127.0.0.1","port":443},
+                "streamSettings":{"network":"hysteria","security":"tls","tlsSettings":{"serverName":"example.test"},
+                "hysteriaSettings":{"version":2,"auth":"synthetic"},"finalmask":{"udp":[
+                {"type":"noise","settings":{"noise":[{"rand":"16-24","delay":1}]}},
+                {"type":"salamander","settings":{"password":"synthetic"}}]}}}""",
+            """{"protocol":"trojan","settings":{"address":"127.0.0.1","port":443,"password":"synthetic"},
+                "streamSettings":{"network":"xhttp","security":"tls","tlsSettings":{"serverName":"example.test","alpn":["h3"]},
+                "finalmask":{"udp":[{"type":"noise","settings":{"noise":[{"rand":"16-24","delay":1}]}}]}}}""",
+        )
+        for (outbound in carriers) {
+            val config = """{"inbounds":[{"protocol":"tun"}],"outbounds":[$outbound]}"""
+            XrayCore.create(config).use { }
+            assertThrows(XrayCoreException::class.java) {
+                XrayCore.create(config.replace("\"rand\":\"16-24\"", "\"rand\":4097")).close()
+            }
+        }
+    }
+
     @Test fun fragmentConfigurationReachesNativeValidation() {
         assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
         val config = """

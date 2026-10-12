@@ -1,5 +1,11 @@
 # Release process
 
+For the 0.8.0 preparation requested on 2026-10-11, the owner explicitly defers
+further iPhone Hysteria startup-failure diagnosis and calibrated 5% performance
+confirmation. The [core decision record](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/releases/v0.8.0-owner-decisions.json)
+preserves failed/not-confirmed outcomes. This does not waive other evidence,
+immutable source pins, canonical artifacts or package-consumer checks.
+
 Mobile releases are two-phase because a remote SwiftPM binary target must
 contain the SHA-256 checksum of the exact ZIP stored at its tagged URL. Release
 versions are either stable `MAJOR.MINOR.PATCH` or release candidates

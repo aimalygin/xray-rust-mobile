@@ -4,7 +4,7 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-Development branch: **0.8.0-rc.1** preparation, with Trojan, Shadowsocks 2022,
+Development branch: **0.8.0** stable preparation, with Trojan, Shadowsocks 2022,
 VMess AEAD and C ABI 1.11. Use local artifacts for this untagged candidate;
 publication remains blocked until core release evidence and canonical artifact
 checks pass. Shadowsocks AEAD-2017 and legacy VMess are excluded.
@@ -49,7 +49,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.8.0-rc.1` (unpublished development pin) | PR #42 | `ee55398d436f22c1fd2b5d2ed3bc467cc03d8b0b` | `1.11` |
+| `0.8.0` (unpublished preparation) | PR #42 | `34df2457ab6cdcd897455961c77db933e27ff2a9` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
 | `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
@@ -126,11 +126,15 @@ denial remains denied with `failOpen: true`; queue/buffer exhaustion also drops.
 These are typed host policies, not additional Xray JSON/provider dictionary keys.
 Apple does not provide the Android UID lookup helper.
 
-Salamander, UDP port hopping and first-ClientHello fragmentation use the pinned
+Salamander, UDP port hopping, first-ClientHello fragmentation and UDP noise use the pinned
 core's JSON configuration. Hysteria2 profile import also preserves
 `obfs=salamander`, `obfs-password` and `mport`. Fragmentation supports the core's
 bounded TCP TLS/REALITY/Vision configurations; it does not apply to QUIC or
-arbitrary UDP. These features stay disabled unless configured. Probe calls are
+arbitrary UDP. UDP noise uses bounded `finalmask.udp` settings on Hysteria2 and
+XHTTP with exact `alpn: ["h3"]`, including mask ordering with Salamander. Legacy
+freedom `settings.noises` is unsupported. Linux TPROXY is a desktop/server
+inbound; Apple/Android applications continue using the TUN adapters.
+These features stay disabled unless configured. Probe calls are
 blocking; call them off the main thread. Capability/version checks guard the
 optional host APIs; distribute the matched native library and adapters together.
 
