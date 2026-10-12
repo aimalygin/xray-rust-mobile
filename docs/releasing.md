@@ -71,6 +71,19 @@ the bundle through the official Central Publisher Portal API, and waits for a
 validated or published state. Maven Central is immutable, so never retry a
 version that has already reached `PUBLISHED`.
 
+Current 0.8.0 evidence (2026-10-12): the exact core `fcce4be` archive passed
+[the GitHub evidence gate](https://github.com/aimalygin/xray-rust/actions/runs/38288094780).
+The [physical and performance report](https://github.com/aimalygin/xray-rust/blob/5f155084ec1c7ff7e6d403fe3d7ce3ff70f0de18/docs/device-results/2026-10-12-v08-candidate/README.md)
+retains all original failures and source identities. Android issue #56 remains
+open by explicit owner decision; iPhone Hysteria and calibrated 5% confirmation
+remain deferred. Apple WAN passes Trojan/VMess with the default peer; SS2022
+passes only with the documented native-server UDP PMTU workaround. Android
+network/lock checks remain not tested. Fresh Apple RSS/footprint limits pass.
+This metadata-only commit changes the candidate source pin to its verified
+annotated `v0.8.0` tag without changing the core commit/tree, adapter sources,
+FFI/JNI, or native runtime. The measured SDK source remains `12fdfa1`; canonical
+artifact preparation and package-consumer checks still follow the steps below.
+
 ## Prepare
 
 ### Candidate core source before the public tag
