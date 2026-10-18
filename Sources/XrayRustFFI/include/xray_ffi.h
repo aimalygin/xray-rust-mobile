@@ -240,7 +240,8 @@ typedef enum XrayFfiCapability {
   XRAY_FFI_CAPABILITY_VMESS_OUTBOUND = 1 << 21,
   XRAY_FFI_CAPABILITY_OUTBOUND_PROBE = 1 << 22,
   XRAY_FFI_CAPABILITY_HYSTERIA_STREAM_LIMITS = 1 << 23,
-  XRAY_FFI_CAPABILITY_TUN_ADMISSION = 1 << 24
+  XRAY_FFI_CAPABILITY_TUN_ADMISSION = 1 << 24,
+  XRAY_FFI_CAPABILITY_STARTUP_PROBE_PREFLIGHT = 1 << 25
 } XrayFfiCapability;
 
 /* ABI 1.9. Outcome written by xray_core_probe_outbound_url through an int32_t.
@@ -385,7 +386,8 @@ XrayStatus xray_core_rebind_hysteria(
     uint64_t *accepted,
     XrayError **error);
 /* ABI 1.9, OUTBOUND_PROBE. Nonblocking, shared teardown preparation. Cancels
- * current AND future probes on a running core; no-op before start/unloaded.
+ * current AND future probes on a running core. ABI 1.12 also cancels preflight
+ * startup probes before start; no-op when unloaded. Legacy start is unaffected.
  * Then drain shared calls before exclusive stop/load/free. A new handle with loaded config
  * resets the latch. Normal traffic and health state are unaffected. */
 XrayStatus xray_core_cancel_outbound_probes(
@@ -425,6 +427,14 @@ XrayStatus xray_core_set_startup_probe(
     const char *url,
     uint64_t timeout_ms,
     const char *outbound_tag,
+    XrayError **error);
+/* ABI 1.12, STARTUP_PROBE_PREFLIGHT. Runs the configured probe before start,
+ * preserving the original config and DNS policy without starting listeners or
+ * TUN I/O. No configured probe is a no-op. Does not consume the probe; start
+ * still runs it. Shared call, cancelled by xray_core_cancel_outbound_probes;
+ * drain before stop/free. Requires a loaded, not-yet-started core. */
+XrayStatus xray_core_preflight_startup_probe(
+    XrayCoreHandle *handle,
     XrayError **error);
 /* Reconfiguring the same numeric fd transfers packet format and close policy
  * without closing it. Replacing it with a different fd closes the old fd when

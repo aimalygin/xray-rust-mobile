@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.8.1 - 2026-10-18
+
+Release candidate preparation; artifacts are not yet published.
+
+- Pin the 0.8.1 core candidate with the Apple startup-probe fix and merged
+  dependency updates. Synchronize the Swift adapters, C ABI 1.12 header and
+  regression tests with the exact core revision.
+- Run startup-probe preflight before applying Apple tunnel routes and DNS,
+  preserving ordinary connectivity while the probe is pending. Failure,
+  timeout, cancellation and superseding starts cannot apply network settings;
+  successful preflight avoids a second probe at data-path startup.
+- Expose the additive `STARTUP_PROBE_PREFLIGHT` capability and Swift preflight
+  API. The Apple provider requires the matching native library when a startup
+  probe is enabled. Protocol formats, Kotlin/JNI APIs and deployment targets
+  are unchanged.
+- Keep canonical artifact locks unprepared until candidate release evidence,
+  the annotated core tag and fresh package/consumer checks pass. Earlier
+  device reports retain their original binary identities and limitations.
+
 ## 0.8.0 - 2026-10-11
 
 Stable release preparation; artifacts are not yet published.

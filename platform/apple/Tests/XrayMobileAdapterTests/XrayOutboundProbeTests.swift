@@ -51,6 +51,31 @@ final class XrayOutboundProbeTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 2)
         wait(for: [finished], timeout: 2)
     }
+
+    func testStopCancelsStalledStartupPreflightBeforeCoreStart() throws {
+        let server = try StalledProbeServer()
+        defer { server.close() }
+        wait(for: [server.ready], timeout: 5)
+        let port = try XCTUnwrap(server.listener.port)
+        let core = try XrayCore(configJSON: config, startupProbe: .init(
+            url: "http://127.0.0.1:\(port.rawValue)/", timeoutMs: 60_000
+        ))
+        let finished = expectation(description: "startup preflight cancelled")
+        DispatchQueue.global().async {
+            defer { finished.fulfill() }
+            do {
+                try core.preflightStartupProbe()
+                XCTFail("stalled preflight must be cancelled")
+            } catch {
+                XCTAssertTrue(error.localizedDescription.contains("cancelled"))
+            }
+        }
+        wait(for: [server.accepted], timeout: 5)
+        let started = Date()
+        try core.stop()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
+        wait(for: [finished], timeout: 2)
+    }
 }
 
 private final class StalledProbeServer {

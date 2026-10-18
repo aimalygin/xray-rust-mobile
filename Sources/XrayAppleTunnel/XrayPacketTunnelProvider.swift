@@ -16,6 +16,7 @@ public enum XrayPacketTunnelProviderError: Error, LocalizedError, CustomNSError 
     case dnsBootstrapTimedOut
     case startSuperseded
     case invalidGeodataConfiguration
+    case startupProbeTimedOut
 
     public static let errorDomain = "XrayAppleTunnel.XrayPacketTunnelProviderError"
 
@@ -37,6 +38,8 @@ public enum XrayPacketTunnelProviderError: Error, LocalizedError, CustomNSError 
             return 6
         case .invalidGeodataConfiguration:
             return 7
+        case .startupProbeTimedOut:
+            return 8
         }
     }
 
@@ -58,6 +61,8 @@ public enum XrayPacketTunnelProviderError: Error, LocalizedError, CustomNSError 
             return "Tunnel start was superseded by a newer lifecycle request."
         case .invalidGeodataConfiguration:
             return "Geodata requires both an App Group identifier and an existing safe relative directory without symbolic links."
+        case .startupProbeTimedOut:
+            return "Startup probe preflight exceeded its deadline."
         }
     }
 }
@@ -165,6 +170,17 @@ final class XrayPacketTunnelLifecycle<Resource> {
         }
         activeResource = resource
         lock.unlock()
+        return true
+    }
+
+    @discardableResult
+    func performStartStep(for token: Token, _ body: () -> Void) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard token.generation == generation else {
+            return false
+        }
+        body()
         return true
     }
 
@@ -411,6 +427,98 @@ final class XrayPacketTunnelBoundedTask<Output>: @unchecked Sendable {
             completionQueue.async {
                 completion(finalResult)
             }
+        }
+    }
+}
+
+@available(iOSApplicationExtension 15.0, tvOSApplicationExtension 17.0, macOSApplicationExtension 13.0, *)
+enum XrayPacketTunnelStartupProbePreflight {
+    private static let startupProbeWorkQueue = DispatchQueue(
+        label: "org.xrayrust.apple.packet-tunnel.startup-probe.worker",
+        qos: .userInitiated
+    )
+    private static let timerQueue = DispatchQueue(
+        label: "org.xrayrust.apple.packet-tunnel.startup-probe.deadline",
+        qos: .userInitiated
+    )
+
+    static func start<Resource>(
+        resolvedConfig: XrayPacketTunnelProvider.ResolvedConfig,
+        lifecycle: XrayPacketTunnelLifecycle<Resource>,
+        lifecycleToken: XrayPacketTunnelLifecycle<Resource>.Token,
+        diagnosticLogDirectory: URL?,
+        completionQueue: DispatchQueue,
+        applyNetworkSettings: @escaping (XrayPacketTunnelProvider.ResolvedConfig) -> Void,
+        completionHandler: @escaping (Error?) -> Void
+    ) {
+        guard let options = resolvedConfig.startupProbeConfiguration.options else {
+            if !lifecycle.performStartStep(for: lifecycleToken, { applyNetworkSettings(resolvedConfig) }) {
+                completionHandler(XrayPacketTunnelProviderError.startSuperseded)
+            }
+            return
+        }
+
+        // A separate unstarted core preserves the full config and DNS policy.
+        // It never discovers/borrows utun or starts listeners and packet I/O.
+        let probeLifecycle = XrayPacketTunnelLifecycle<XrayCore> { try? $0.stop() }
+        let probeToken = probeLifecycle.beginStart()
+        let task = XrayPacketTunnelBoundedTask<XrayPacketTunnelProvider.ResolvedConfig>(
+            deadline: .now() + .milliseconds(Int(options.timeoutMs)) + .seconds(5),
+            workQueue: Self.startupProbeWorkQueue,
+            timerQueue: Self.timerQueue,
+            completionQueue: completionQueue,
+            timeoutError: XrayPacketTunnelProviderError.startupProbeTimedOut
+        ) { result in
+            // Also cancels native work if the outer deadline won the race.
+            probeLifecycle.stop()
+            _ = lifecycle.clearPendingStartCancellation(for: lifecycleToken)
+            guard lifecycle.isCurrent(lifecycleToken) else {
+                completionHandler(XrayPacketTunnelProviderError.startSuperseded)
+                return
+            }
+            switch result {
+            case let .success(preparedConfig):
+                if !lifecycle.performStartStep(for: lifecycleToken, { applyNetworkSettings(preparedConfig) }) {
+                    completionHandler(XrayPacketTunnelProviderError.startSuperseded)
+                }
+            case let .failure(error):
+                if lifecycle.cancelStart(lifecycleToken) {
+                    XrayAppleLog.configureFileLogging(directory: nil)
+                }
+                XrayAppleLog.error(
+                    "PacketTunnelProvider",
+                    "Startup probe failed before network settings: \(error.localizedDescription)"
+                )
+                completionHandler(error)
+            }
+        }
+        guard lifecycle.registerPendingStartCancellation(for: lifecycleToken, {
+            task.cancel(with: XrayPacketTunnelProviderError.startSuperseded)
+            probeLifecycle.stop()
+        }) else {
+            task.cancel(with: XrayPacketTunnelProviderError.startSuperseded)
+            return
+        }
+        task.start { shouldContinue in
+            guard shouldContinue() else {
+                throw XrayPacketTunnelProviderError.startupProbeTimedOut
+            }
+            let core = try XrayPacketTunnelProvider.makeCore(
+                resolvedConfig: resolvedConfig,
+                borrowedDarwinTunFileDescriptor: nil,
+                diagnosticLogDirectory: diagnosticLogDirectory
+            )
+            guard probeLifecycle.install(core, for: probeToken) else {
+                throw XrayPacketTunnelProviderError.startSuperseded
+            }
+            defer { probeLifecycle.stop() }
+            try core.preflightStartupProbe()
+            guard shouldContinue() else {
+                throw XrayPacketTunnelProviderError.startupProbeTimedOut
+            }
+            var preparedConfig = resolvedConfig
+            preparedConfig.startupProbeConfiguration = .disabled
+            return preparedConfig
         }
     }
 }
@@ -672,7 +780,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             }
             switch result {
             case let .success(preparedConfig):
-                self.applyNetworkSettingsAndStartRuntime(
+                self.startStartupProbePreflight(
                     resolvedConfig: preparedConfig,
                     lifecycleToken: lifecycleToken,
                     completionHandler: completionHandler
@@ -725,11 +833,43 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
+    private func startStartupProbePreflight(
+        resolvedConfig: ResolvedConfig,
+        lifecycleToken: XrayPacketTunnelLifecycle<XrayPacketTunnelRuntime>.Token,
+        completionHandler: @escaping (Error?) -> Void
+    ) {
+        XrayPacketTunnelStartupProbePreflight.start(
+            resolvedConfig: resolvedConfig,
+            lifecycle: lifecycle,
+            lifecycleToken: lifecycleToken,
+            diagnosticLogDirectory: Self.diagnosticLogDirectory(
+                debugLoggingEnabled: resolvedConfig.debugLoggingEnabled
+            ),
+            completionQueue: dnsBootstrapCompletionQueue,
+            applyNetworkSettings: { [weak self] preparedConfig in
+                guard let self else {
+                    completionHandler(CocoaError(.userCancelled))
+                    return
+                }
+                self.applyNetworkSettingsAndStartRuntime(
+                    resolvedConfig: preparedConfig,
+                    lifecycleToken: lifecycleToken,
+                    completionHandler: completionHandler
+                )
+            },
+            completionHandler: completionHandler
+        )
+    }
+
     private func applyNetworkSettingsAndStartRuntime(
         resolvedConfig: ResolvedConfig,
         lifecycleToken: XrayPacketTunnelLifecycle<XrayPacketTunnelRuntime>.Token,
         completionHandler: @escaping (Error?) -> Void
     ) {
+        guard lifecycle.isCurrent(lifecycleToken) else {
+            completionHandler(XrayPacketTunnelProviderError.startSuperseded)
+            return
+        }
         guard let resolvedDNSConfiguration = Self.resolvedDNSConfiguration(
             configJSON: resolvedConfig.json,
             explicit: resolvedConfig.dnsConfiguration
@@ -759,12 +899,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             )
         }
 
-        setTunnelNetworkSettings(
-            Self.networkSettings(
-                excludingServerAddresses: resolvedConfig.excludedServerAddresses,
-                resolvedDNSConfiguration: resolvedDNSConfiguration
-            )
-        ) { [weak self] error in
+        let settingsCompletion: (Error?) -> Void = { [weak self] error in
             guard let self else {
                 XrayAppleLog.error("PacketTunnelProvider", "Provider released before network settings completed")
                 completionHandler(CocoaError(.userCancelled))
@@ -827,6 +962,19 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 }
                 completionHandler(error)
             }
+        }
+        // Serialize the settings submission with stop/new-start invalidation.
+        let didApplySettings = lifecycle.performStartStep(for: lifecycleToken) {
+            setTunnelNetworkSettings(
+                Self.networkSettings(
+                    excludingServerAddresses: resolvedConfig.excludedServerAddresses,
+                    resolvedDNSConfiguration: resolvedDNSConfiguration
+                ),
+                completionHandler: settingsCompletion
+            )
+        }
+        if !didApplySettings {
+            completionHandler(XrayPacketTunnelProviderError.startSuperseded)
         }
     }
 

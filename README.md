@@ -4,16 +4,17 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-Development branch: **0.8.0** stable preparation, with Trojan, Shadowsocks 2022,
-VMess AEAD and C ABI 1.11. Use local artifacts for this untagged candidate;
+Development branch: **0.8.1** preparation, with the Apple startup-probe ordering
+fix, updated core dependencies and C ABI 1.12. Use local artifacts for this untagged candidate;
 publication remains blocked until core release evidence and canonical artifact
 checks pass. Shadowsocks AEAD-2017 and legacy VMess are excluded.
 
-Published SDK version: **0.7.0**, with Hysteria2/WireGuard support and C ABI 1.7.
+Published SDK version: **0.8.0**, with Trojan, Shadowsocks 2022, VMess AEAD,
+Hysteria2/WireGuard support and C ABI 1.11.
 See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#070---2026-09-27)
+for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#080---2026-10-11)
 for the release scope. The device evidence retains its measured source and the
-explicit [Android cellular/WireGuard owner decisions](https://github.com/aimalygin/xray-rust/blob/v0.7.0/docs/v07-stable-promotion.md).
+explicit [0.8.0 limitations and owner decisions](https://github.com/aimalygin/xray-rust/releases/tag/v0.8.0).
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -49,7 +50,8 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.8.0` (unpublished preparation) | PR #42 | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
+| `0.8.1` (unpublished preparation) | exact candidate | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
+| `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
 | `0.6.0` | `v0.6.0` | `8fd695d3da7ae98051b55b598aa7a16c8ecb1db5` | `1` |
@@ -75,6 +77,14 @@ respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
 
 ## New APIs in the development SDK
+
+The Apple provider performs cancellable startup-probe preflight after DNS
+bootstrap and before installing tunnel network settings. With a startup probe
+enabled, the native library must expose ABI 1.12's `STARTUP_PROBE_PREFLIGHT`
+capability. Probe failure, timeout or cancellation leaves network settings
+untouched. The provider disables the already-completed probe on its data-path
+core. Custom integrations can use `XrayCore.preflightStartupProbe()` on a loaded,
+unstarted core; ordinary `start()` retains its existing startup-probe behavior.
 
 Both adapters expose Hysteria2/WireGuard rebind, outbound URL probes,
 `XrayHysteriaStreamLimits` and `XrayTunAdmissionOptions` through `XrayCore`.
@@ -153,7 +163,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.7.0"
+        exact: "0.8.0"
     ),
 ]
 ~~~
@@ -318,12 +328,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.7.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.8.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.7.0).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.8.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
