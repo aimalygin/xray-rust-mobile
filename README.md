@@ -160,7 +160,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.8.0"
+        exact: "0.8.1"
     ),
 ]
 ~~~
@@ -325,12 +325,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.8.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.8.1")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.8.0).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.8.1).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
