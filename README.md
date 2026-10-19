@@ -4,17 +4,14 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-Development branch: **0.8.1** preparation, with the Apple startup-probe ordering
-fix, updated core dependencies and C ABI 1.12. Use local artifacts for this untagged candidate;
-publication remains blocked until core release evidence and canonical artifact
-checks pass. Shadowsocks AEAD-2017 and legacy VMess are excluded.
-
-Published SDK version: **0.8.0**, with Trojan, Shadowsocks 2022, VMess AEAD,
-Hysteria2/WireGuard support and C ABI 1.11.
+SDK **0.8.1** includes the Apple startup-probe ordering fix, updated core
+dependencies and C ABI 1.12. Trojan, Shadowsocks 2022, VMess AEAD, Hysteria2 and
+WireGuard are supported; Shadowsocks AEAD-2017 and legacy VMess remain excluded.
 See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#080---2026-10-11)
-for the release scope. The device evidence retains its measured source and the
-explicit [0.8.0 limitations and owner decisions](https://github.com/aimalygin/xray-rust/releases/tag/v0.8.0).
+for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#081---2026-10-18)
+for the release scope. The [core 0.8.1 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.8.1)
+retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
+unconfirmed 5% latency non-regression bound accepted for this release.
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -50,7 +47,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.8.1` (unpublished preparation) | exact candidate | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
+| `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
 | `0.6.1` | `v0.6.1-rc.1` | `1231add417a4e2e6aa4c9e51c13487d493498a1d` | `1` |
@@ -76,7 +73,7 @@ aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
 respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
 
-## New APIs in the development SDK
+## New APIs in 0.8.1
 
 The Apple provider performs cancellable startup-probe preflight after DNS
 bootstrap and before installing tunnel network settings. With a startup probe

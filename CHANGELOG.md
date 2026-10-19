@@ -4,9 +4,10 @@
 
 ## 0.8.1 - 2026-10-18
 
-Release candidate preparation; artifacts are not yet published.
+Apple startup-probe ordering fix with C ABI 1.12. Artifact availability is
+recorded in [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.8.1).
 
-- Pin the 0.8.1 core candidate with the Apple startup-probe fix and merged
+- Pin the exact 0.8.1 core with the Apple startup-probe fix and merged
   dependency updates. Synchronize the Swift adapters, C ABI 1.12 header and
   regression tests with the exact core revision.
 - Run startup-probe preflight before applying Apple tunnel routes and DNS,
@@ -20,6 +21,10 @@ Release candidate preparation; artifacts are not yet published.
 - Keep canonical artifact locks unprepared until candidate release evidence,
   the annotated core tag and fresh package/consumer checks pass. Earlier
   device reports retain their original binary identities and limitations.
+- Record the explicit 0.8.1 release decision accepting the conditional SS2022
+  WAN server PMTU requirement, remote EOF observations outside the three-second
+  bound and unconfirmed 5% latency non-regression bound. Preserve failed trials
+  and Android's existing network/lock omissions; no universal fix is claimed.
 
 ## 0.8.0 - 2026-10-11
 

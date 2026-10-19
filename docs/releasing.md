@@ -1,14 +1,15 @@
 # Release process
 
-The 0.8.1 preparation requested on 2026-10-18 pins an exact untagged core
-candidate and synchronizes ABI 1.12 plus the Apple startup-probe fix. The
-[core preparation record](https://github.com/aimalygin/xray-rust/blob/codex/release-0.8.1/docs/v081-release.md)
-tracks its scope and remaining qualification. The 0.8.0 archive and subsequent
-focused device reports retain their original identities. They do not satisfy
-the exact-candidate 0.8.1 gate by themselves. Keep the core pin in candidate
-mode and Apple artifact locks unprepared until the required evidence and
-annotated core tag have been verified. The SDK's existing Android packaging
-toolchain remains pinned independently of the core reference-app toolchain.
+The 0.8.1 release requested on 2026-10-18 pins core
+`5b61eee201fac8639cb1dac0349e34af65db90f7` and synchronizes ABI 1.12 plus the
+Apple startup-probe fix. The fresh exact-candidate archive passed
+[the evidence workflow](https://github.com/aimalygin/xray-rust/actions/runs/39182739969).
+The owner explicitly authorized publication with the documented SS2022 WAN
+PMTU/remote-EOF limitations and unconfirmed 5% latency bound; see the
+[0.8.1 decision](https://github.com/aimalygin/xray-rust/blob/6682065/docs/releases/v0.8.1-owner-decisions.json).
+Failures and original identities remain intact. Canonical artifact provenance,
+checksums and published-consumer checks remain required. The SDK's Android
+packaging toolchain is pinned independently of the core reference-app toolchain.
 
 For the 0.8.0 preparation requested on 2026-10-11, the owner explicitly defers
 further iPhone Hysteria startup-failure diagnosis and calibrated 5% performance
