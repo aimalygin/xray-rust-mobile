@@ -25,6 +25,7 @@ final class XrayPacketTunnelProviderTests: XCTestCase {
             (.dnsBootstrapTimedOut, 5),
             (.startSuperseded, 6),
             (.invalidGeodataConfiguration, 7),
+            (.startupProbeTimedOut, 8),
         ]
 
         for (error, expectedCode) in expectedCodes {
@@ -44,6 +45,9 @@ final class XrayPacketTunnelProviderTests: XCTestCase {
 
         lifecycle.stop()
 
+        XCTAssertFalse(lifecycle.performStartStep(for: token) {
+            XCTFail("stopped start must not submit network settings")
+        })
         var didCreateRuntime = false
         if lifecycle.isCurrent(token) {
             didCreateRuntime = true

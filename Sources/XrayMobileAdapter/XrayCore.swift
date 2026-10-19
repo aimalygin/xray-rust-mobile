@@ -107,6 +107,10 @@ public struct XrayFFICapabilities: OptionSet, Equatable, Sendable {
     public static let startupProbe = Self(
         rawValue: UInt64(XRAY_FFI_CAPABILITY_STARTUP_PROBE.rawValue)
     )
+
+    public static let startupProbePreflight = Self(
+        rawValue: UInt64(XRAY_FFI_CAPABILITY_STARTUP_PROBE_PREFLIGHT.rawValue)
+    )
     public static let fileLogging = Self(
         rawValue: UInt64(XRAY_FFI_CAPABILITY_FILE_LOGGING.rawValue)
     )
@@ -1128,6 +1132,22 @@ public final class XrayCore: @unchecked Sendable {
             }
             retainedSocketProtectContext?.release()
             retainedSocketProtectContext = nil
+        }
+    }
+
+    /// Runs the configured startup probe without starting listeners or TUN I/O.
+    /// Call on a background queue before `start`. `stop` cancels a pending
+    /// preflight. This does not consume the configured probe; create the later
+    /// data-path core without one to avoid probing twice. Requires ABI 1.12.
+    public func preflightStartupProbe() throws {
+        let version = Self.ffiInfo.version
+        guard version.minor >= 12 else {
+            throw XrayCoreError.incompatibleFFIMinorVersion(required: 12, actual: version.minor)
+        }
+        try requireCapability(.startupProbePreflight)
+        try withSharedHandle { handle in
+            var error: OpaquePointer?
+            try check(xray_core_preflight_startup_probe(handle, &error), error: error)
         }
     }
 
