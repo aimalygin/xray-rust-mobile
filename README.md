@@ -86,8 +86,10 @@ The complete trust anchor is in [`release/core.env`](release/core.env).
 
 The candidate includes Android's unmetered VPN setting, cached FFI metadata,
 checked native statistics and wrapper cleanup from core #82/#88. SOCKS inbound
-UDP authentication/source checks and association cleanup are included in the
-native core. SOCKS outbound supports TCP CONNECT and UDP ASSOCIATE over raw TCP or TLS
+authenticates the TCP control connection; password-protected UDP associations
+require a declared nonzero client port and enforce that source endpoint. UDP
+datagrams carry no credentials. Association cleanup is also included in core.
+SOCKS outbound supports TCP CONNECT and UDP ASSOCIATE over raw TCP or TLS
 control connections; relay UDP datagrams remain plain. Its server domain is
 bootstrapped before tunnel startup and Apple excludes the resolved carrier IPs
 from tunnel routes. Destination-domain resolution remains with the SOCKS proxy.
