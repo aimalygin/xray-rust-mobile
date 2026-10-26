@@ -2,9 +2,7 @@
 
 ## Unreleased
 
-## 0.9.0-rc.1 - 2026-10-25
-
-Development candidate only; no tag or binary artifacts are published.
+Development source synchronization; the next release version has not been chosen.
 
 - Pin reviewed core `15e8b205a0101a0eb0b23913ae994370ce8683b9`, whose
   post-merge CI passed, with its exact tree and Cargo.lock digest. Synchronize
@@ -23,7 +21,7 @@ Development candidate only; no tag or binary artifacts are published.
   source builds and CI use a freshly built XCFramework. Published installation
   examples stay on 0.8.1. A future release needs matching core version/tag,
   new release evidence and fresh artifact provenance; prior release acceptance
-  does not establish acceptance of this candidate.
+  does not establish acceptance of this development snapshot.
 - Track Android network-change coordination separately in
   [core #89](https://github.com/aimalygin/xray-rust/issues/89).
   Hosts still own observers; existing rebind APIs and FD ownership are unchanged.

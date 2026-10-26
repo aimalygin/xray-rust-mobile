@@ -1,13 +1,16 @@
 # Release process
 
-The current development candidate `0.9.0-rc.1` pins core commit
-`15e8b205a0101a0eb0b23913ae994370ce8683b9`, with C ABI 1.12 and an
-unprepared Apple artifact lock. The core still reports 0.8.1; this is not a
-release identity. Only source/CI preparation is enabled. Publication requires
-a separately reviewed version alignment, matching annotated core tag, a new
-0.9 release-evidence profile/workflow and fresh canonical artifact locks. The
-current evidence allowlist intentionally stops at 0.8; do not reuse old
-acceptance or extend it solely to make candidate publication pass.
+The current branch tracks **Unreleased** changes and pins core commit
+`15e8b205a0101a0eb0b23913ae994370ce8683b9`, with C ABI 1.12. Both projects
+retain their last released version fields, 0.8.1; this development snapshot is
+not the published 0.8.1 release. The core is pinned by commit with no claimed
+tag, and the Apple artifact lock/checksum remain unprepared. These guards
+block publication while allowing source builds and CI.
+
+Release preparation is deferred until the intended feature scope and acceptance
+checks are settled. Choose the next version and align both repositories as a
+separate release task, with a verified core tag, fresh evidence and canonical
+artifact provenance. Previous release acceptance does not qualify this snapshot.
 
 The 0.8.1 release requested on 2026-10-18 pins core
 `5b61eee201fac8639cb1dac0349e34af65db90f7` and synchronizes ABI 1.12 plus the
