@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+Development source synchronization; the next release version has not been chosen.
+
+- Pin reviewed core `15e8b205a0101a0eb0b23913ae994370ce8683b9`, whose
+  post-merge CI passed, with its exact tree and Cargo.lock digest. Synchronize
+  canonical Apple/Android adapters and regression tests byte-for-byte. C ABI
+  remains 1.12; the development core still reports its existing 0.8.1 version.
+- Include SOCKS inbound authentication and UDP source/lifecycle fixes, SOCKS
+  outbound TCP CONNECT / UDP ASSOCIATE with raw TCP or TLS control connections,
+  and updated Rust dependencies from core. Relay UDP datagrams remain plain.
+  SOCKS carrier bootstrap now resolves server domains before tunnel startup
+  on both platforms and excludes carrier IPs from Apple tunnel routes.
+  HTTP outbound and SOCKS share-link import remain unsupported.
+- Bring Android unmetered VPN declaration, cached FFI metadata, checked native
+  statistics, shared snapshot/enum decoding and shutdown error preservation
+  from core #82/#88 into the packaged SDK.
+- Reset the Apple artifact lock and checksum to unprepared placeholders;
+  source builds and CI use a freshly built XCFramework. Published installation
+  examples stay on 0.8.1. A future release needs matching core version/tag,
+  new release evidence and fresh artifact provenance; prior release acceptance
+  does not establish acceptance of this development snapshot.
+- Track Android network-change coordination separately in
+  [core #89](https://github.com/aimalygin/xray-rust/issues/89).
+  Hosts still own observers; existing rebind APIs and FD ownership are unchanged.
+
 ## 0.8.1 - 2026-10-18
 
 Apple startup-probe ordering fix with C ABI 1.12. Artifact availability is

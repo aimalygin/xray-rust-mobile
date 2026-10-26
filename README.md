@@ -13,6 +13,17 @@ for the release scope. The [core 0.8.1 evidence and limitations](https://github.
 retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
 unconfirmed 5% latency non-regression bound accepted for this release.
 
+The development branch tracks **Unreleased** changes against reviewed core
+[`15e8b205`](https://github.com/aimalygin/xray-rust/commit/15e8b205a0101a0eb0b23913ae994370ce8683b9),
+whose [post-merge CI passed](https://github.com/aimalygin/xray-rust/actions/runs/40233590914).
+This source synchronization leaves the last released version fields at 0.8.1;
+local builds of this checkout are development snapshots, not the published
+0.8.1 artifacts. The commit pin and unprepared artifact locks block publication.
+Use the installation examples below for published 0.8.1 packages. For source
+development, build the native artifacts locally before resolving the Swift
+package; see [Unreleased changes](CHANGELOG.md#unreleased). A future release
+version and acceptance scope will be chosen separately.
+
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
@@ -47,6 +58,7 @@ This project is unofficial and is not affiliated with XTLS or Xray-core.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| Unreleased source snapshot | commit pin; core reports `0.8.1` | `15e8b205a0101a0eb0b23913ae994370ce8683b9` | `1.12` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
@@ -72,6 +84,27 @@ For releases that change the core or its adapters, the Mobile SDK version stays
 aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
 respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
+
+## Development synchronization after 0.8.1
+
+The development snapshot includes Android's unmetered VPN setting, cached FFI metadata,
+checked native statistics and wrapper cleanup from core #82/#88. SOCKS inbound
+authenticates the TCP control connection; password-protected UDP associations
+require a declared nonzero client port and enforce that source endpoint. UDP
+datagrams carry no credentials. Association cleanup is also included in core.
+SOCKS outbound supports TCP CONNECT and UDP ASSOCIATE over raw TCP or TLS
+control connections; relay UDP datagrams remain plain. Its server domain is
+bootstrapped before tunnel startup and Apple excludes the resolved carrier IPs
+from tunnel routes. Destination-domain resolution remains with the SOCKS proxy.
+HTTP outbound, SOCKS share-link import and UDP proxy chaining are outside this
+scope. See the [pinned compatibility policy](https://github.com/aimalygin/xray-rust/blob/15e8b205a0101a0eb0b23913ae994370ce8683b9/docs/xray-core-differences.md)
+for supported behavior and deliberate differences from Xray-core.
+
+Android network-change coordination is tracked separately in [core #89](https://github.com/aimalygin/xray-rust/issues/89). The host still
+owns network observation and uses the existing Hysteria2/WireGuard rebind APIs;
+this snapshot does not add automatic migration or change borrowed-FD ownership.
+The SDK's packaging toolchain remains independently pinned. Development CI checks
+source/package integration, not new physical-device or performance acceptance.
 
 ## New APIs in 0.8.1
 
