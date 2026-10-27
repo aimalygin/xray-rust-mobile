@@ -1,7 +1,7 @@
 # Release process
 
 The current branch tracks **Unreleased** changes and pins core commit
-`87a1f18c4446a3ba56c276394a0867cc9434cd7a`, with C ABI 1.12. Both projects
+`c6cc46d4033d60d846cd0f1b8d83f2cf0736bb46`, with C ABI 1.12. Both projects
 retain their last released version fields, 0.8.1; this development snapshot is
 not the published 0.8.1 release. The core is pinned by commit with no claimed
 tag, and the Apple artifact lock/checksum remain unprepared. These guards
