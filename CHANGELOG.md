@@ -4,16 +4,20 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin reviewed core `15e8b205a0101a0eb0b23913ae994370ce8683b9`, whose
-  post-merge CI passed, with its exact tree and Cargo.lock digest. Synchronize
-  canonical Apple/Android adapters and regression tests byte-for-byte. C ABI
-  remains 1.12; the development core still reports its existing 0.8.1 version.
+- Pin core `10af12a82b8cc557b8e003bdd655d207e883a004` for Xray-core v26.10.21
+  compatibility, with exact tree and Cargo.lock digests. Synchronize canonical
+  Apple/Android sources and tests; C ABI remains 1.12 and core version 0.8.1.
+- Carry hybrid-only REALITY profiles, tunnel-owned WireGuard `remoteDNS`,
+  `sockopt.dialerProxy`, the new bounded UDP-hop mask, HTTPUpgrade headers,
+  QUIC v2 sniffing, and the emSign trust-root removal. QUIC transport remains
+  v1 without ChromeParrot shaping. Hysteria import emits the new format and
+  WireGuard import preserves explicit remote DNS. SDK tests cover both.
 - Include SOCKS inbound authentication and UDP source/lifecycle fixes, SOCKS
   outbound TCP CONNECT / UDP ASSOCIATE with raw TCP or TLS control connections,
   and updated Rust dependencies from core. Relay UDP datagrams remain plain.
   SOCKS carrier bootstrap now resolves server domains before tunnel startup
   on both platforms and excludes carrier IPs from Apple tunnel routes.
-  HTTP outbound and SOCKS share-link import remain unsupported.
+  HTTP outbound TCP CONNECT is available through canonical JSON; SOCKS share-link import remains unsupported.
 - Bring Android unmetered VPN declaration, cached FFI metadata, checked native
   statistics, shared snapshot/enum decoding and shutdown error preservation
   from core #82/#88 into the packaged SDK.

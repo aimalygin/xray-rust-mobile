@@ -61,6 +61,9 @@ profile_dir="$profile"
 if [[ "$profile" == "release" ]]; then
   profile_args+=(--release)
 elif [[ "$profile" == "dev" || "$profile" == "debug" ]]; then
+  # Keep the array nonempty: macOS Bash 3.2 treats an empty array as unset
+  # under nounset, even when expanded with [@]. Cargo's dev output is debug/.
+  profile_args+=(--profile dev)
   profile_dir="debug"
 else
   profile_args+=(--profile "$profile")

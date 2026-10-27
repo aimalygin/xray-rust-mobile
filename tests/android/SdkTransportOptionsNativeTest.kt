@@ -18,8 +18,13 @@ class SdkTransportOptionsNativeTest {
         )
         val mask = JSONObject(profile.configJson).getJSONArray("outbounds").getJSONObject(0)
             .getJSONObject("streamSettings").getJSONObject("finalmask")
-        assertEquals("salamander", mask.getJSONArray("udp").getJSONObject(0).getString("type"))
-        assertTrue(mask.getJSONObject("quicParams").has("udpHop"))
+        val masks = mask.getJSONArray("udp")
+        assertEquals("udphop", masks.getJSONObject(0).getString("type"))
+        assertEquals("salamander", masks.getJSONObject(1).getString("type"))
+        val hop = masks.getJSONObject(0).getJSONObject("settings")
+        assertEquals("intervalLocal,intervalRemote", hop.getString("mode"))
+        assertEquals("443,8443-8444", hop.getString("remotePorts"))
+        assertTrue(mask.getJSONObject("quicParams").getBoolean("disableChromeParrot"))
         XrayCore.create(profile.configJson).use { }
     }
 
@@ -55,6 +60,20 @@ class SdkTransportOptionsNativeTest {
         XrayCore.create(config).use { }
         assertThrows(XrayCoreException::class.java) {
             XrayCore.create(config.replace("\"length\":37", "\"length\":0")).close()
+        }
+    }
+
+    @Test fun newDialerProxyAndWireGuardDnsReachNativeValidation() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        val chain = """{"outbounds":[{"tag":"entry","protocol":"http","settings":{"address":"192.0.2.10","port":8080},"streamSettings":{"sockopt":{"dialerProxy":"exit"}}},{"tag":"exit","protocol":"freedom"}]}"""
+        XrayCore.create(chain).use { }
+        assertThrows(XrayCoreException::class.java) {
+            XrayCore.create(chain.replace("\"dialerProxy\":\"exit\"", "\"dialerProxy\":\"missing\"")).close()
+        }
+        val wireguard = """{"outbounds":[{"protocol":"wireguard","settings":{"secretKey":"4242424242424242424242424242424242424242424242424242424242424242","address":["10.44.0.2"],"remoteDNS":["192.0.2.53"],"peers":[{"publicKey":"6363636363636363636363636363636363636363636363636363636363636363","endpoint":"192.0.2.1:51820"}]}}]}"""
+        XrayCore.create(wireguard).use { }
+        assertThrows(XrayCoreException::class.java) {
+            XrayCore.create(wireguard.replace("192.0.2.53", "dns.example")).close()
         }
     }
 }
