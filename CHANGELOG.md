@@ -4,7 +4,7 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin core `c6cc46d4033d60d846cd0f1b8d83f2cf0736bb46` for Xray-core v26.10.21
+- Pin core `49f80189c60e91005a7abf220fda379e25f40512` for Xray-core v26.10.21
   compatibility, with exact tree and Cargo.lock digests. Synchronize canonical
   Apple/Android sources and tests; C ABI remains 1.12 and core version 0.8.1.
 - Carry hybrid-only REALITY profiles, tunnel-owned WireGuard `remoteDNS`,

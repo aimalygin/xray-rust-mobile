@@ -156,6 +156,7 @@ afterEvaluate {
 // Load the SDK's bridge and pinned core for host JNI tests; Android binaries
 // cannot be loaded by the host JVM used for ordinary unit tests.
 tasks.withType<Test>().configureEach {
+    testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     providers.gradleProperty("xrayNativeImportLibraryPath").orNull?.let { path ->
         systemProperty("java.library.path", path)
         systemProperty("xray.test.nativeImport", "true")
