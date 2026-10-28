@@ -14,8 +14,9 @@ retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
 unconfirmed 5% latency non-regression bound accepted for this release.
 
 The development branch tracks **Unreleased** changes against core
-[`e4699e6`](https://github.com/aimalygin/xray-rust/commit/e4699e6bf7f44af0c74d500660f47eddeb959de1),
-which migrates the compatibility reference to Xray-core v26.10.21. See the
+[`0a6583d`](https://github.com/aimalygin/xray-rust/commit/0a6583da2f0d06b50145ccb6018993f007dff261),
+which includes the Xray-core v26.10.21 migration and the opt-in Android
+network-change coordinator from [core #97](https://github.com/aimalygin/xray-rust/pull/97). See the
 [core migration record](https://github.com/aimalygin/xray-rust/blob/e4699e6bf7f44af0c74d500660f47eddeb959de1/docs/xray-core-v26.10.21-migration.md) for verified scope and limits.
 This source synchronization leaves the last released version fields at 0.8.1;
 local builds of this checkout are development snapshots, not the published
@@ -97,13 +98,30 @@ SOCKS outbound supports TCP CONNECT and UDP ASSOCIATE over raw TCP or TLS
 control connections; relay UDP datagrams remain plain. Its server domain is
 bootstrapped before tunnel startup and Apple excludes the resolved carrier IPs
 from tunnel routes. Destination-domain resolution remains with the SOCKS proxy.
-HTTP outbound, SOCKS share-link import and UDP proxy chaining are outside this
-scope. See the [pinned compatibility policy](https://github.com/aimalygin/xray-rust/blob/e4699e6bf7f44af0c74d500660f47eddeb959de1/docs/xray-core-differences.md)
+HTTP outbound TCP CONNECT is available through canonical JSON. SOCKS share-link
+import and UDP proxy chaining remain outside this scope. See the [pinned compatibility policy](https://github.com/aimalygin/xray-rust/blob/0a6583da2f0d06b50145ccb6018993f007dff261/docs/xray-core-differences.md)
 for supported behavior and deliberate differences from Xray-core.
 
-Android network-change coordination is tracked separately in [core #89](https://github.com/aimalygin/xray-rust/issues/89). The host still
-owns network observation and uses the existing Hysteria2/WireGuard rebind APIs;
-this snapshot does not add automatic migration or change borrowed-FD ownership.
+Android apps can opt into `XrayNetworkChangeCoordinator` on their serial VPN
+control executor. Supply `ACCESS_NETWORK_STATE` and a policy that selects a
+usable non-VPN network, applies actual carrier/socket-binding settings, then
+returns that network (or null while offline). The helper waits for callback
+metadata, coalesces events, and requests Hysteria2/WireGuard rebind independently.
+Initial observation and loss without a replacement do not request migration.
+Call `close()` before core shutdown and borrowed-fd close; queued events from an
+old session cannot reach the next core.
+
+Results count accepted/coalesced requests, not recovered traffic; idle outbounds
+return zero without opening connections. Protection and existing ABI guards
+remain in effect. For ordinary default routing retain `setUnderlyingNetworks(null)`;
+an explicit list must describe actual `Network.bindSocket` use and does not
+move sockets. DNS/NAT64 refresh and other protocols need host restart policy.
+See the [compiled fd-session example](android/xraymobile/src/test/java/org/xrayrust/mobile/examples/NetworkChangeFdSession.kt)
+and [full lifecycle contract](https://github.com/aimalygin/xray-rust/blob/0a6583da2f0d06b50145ccb6018993f007dff261/platform/android/README.md#network-changes-and-hysteria-limits).
+This helper changes no C ABI, defaults, fd ownership or coroutine dependencies.
+Physical Wi-Fi↔cellular validation with active TCP/UDP remains open in
+[core #89](https://github.com/aimalygin/xray-rust/issues/89); localhost JNI continuity
+checks do not establish Android migration support.
 The SDK's packaging toolchain remains independently pinned. Development CI checks
 source/package integration, not new physical-device or performance acceptance.
 

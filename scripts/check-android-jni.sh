@@ -36,6 +36,7 @@ native_dir="$(cd "$CARGO_TARGET_DIR/debug" && pwd -P)"
   "-PxrayNativeImportFixtureRoot=$core" \
   --tests '*XrayProfileImporter*' --tests '*XrayOutboundProbeNative*' \
   --tests '*XrayHysteriaNative*' --tests '*XrayTunAdmissionNative*' \
+  --tests '*XrayNetworkChangeNative*' \
   --tests '*SdkTransportOptionsNative*' \
   --dependency-verification strict --no-daemon --console=plain "$@"
 
@@ -49,7 +50,7 @@ from pathlib import Path
 
 required = {"XrayProfileImporterNativeTest", "XrayOutboundProbeNativeTest",
             "XrayHysteriaNativeTest", "XrayTunAdmissionNativeTest",
-            "SdkTransportOptionsNativeTest"}
+            "SdkTransportOptionsNativeTest", "XrayNetworkChangeNativeTest"}
 seen = set()
 passed = skipped = 0
 for path in Path(sys.argv[1]).glob("TEST-*.xml"):
