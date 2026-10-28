@@ -34,8 +34,13 @@ final class SdkConsumerTests: XCTestCase {
         let proxy = try XCTUnwrap((root["outbounds"] as? [[String: Any]])?.first)
         let stream = try XCTUnwrap(proxy["streamSettings"] as? [String: Any])
         let mask = try XCTUnwrap(stream["finalmask"] as? [String: Any])
-        XCTAssertEqual((mask["udp"] as? [[String: Any]])?.first?["type"] as? String, "salamander")
-        XCTAssertNotNil((mask["quicParams"] as? [String: Any])?["udpHop"])
+        let masks = try XCTUnwrap(mask["udp"] as? [[String: Any]])
+        XCTAssertEqual(masks[0]["type"] as? String, "udphop")
+        XCTAssertEqual(masks[1]["type"] as? String, "salamander")
+        let hop = try XCTUnwrap(masks[0]["settings"] as? [String: Any])
+        XCTAssertEqual(hop["mode"] as? String, "intervalLocal,intervalRemote")
+        XCTAssertEqual(hop["remotePorts"] as? String, "443,8443-8444")
+        XCTAssertEqual((mask["quicParams"] as? [String: Any])?["disableChromeParrot"] as? Bool, true)
         try XrayMobileDNSPreflight.validate(profile.configJSON)
         _ = try XrayCore(configJSON: profile.configJSON)
     }
@@ -73,6 +78,15 @@ final class SdkConsumerTests: XCTestCase {
         try XrayMobileDNSPreflight.validate(config)
         _ = try XrayCore(configJSON: config)
         XCTAssertThrowsError(try XrayCore(configJSON: config.replacingOccurrences(of: "\"length\":37", with: "\"length\":0")))
+    }
+
+    func testNewDialerProxyAndWireGuardDNSReachNativeValidation() throws {
+        let chain = #"{"outbounds":[{"tag":"entry","protocol":"http","settings":{"address":"192.0.2.10","port":8080},"streamSettings":{"sockopt":{"dialerProxy":"exit"}}},{"tag":"exit","protocol":"freedom"}]}"#
+        _ = try XrayCore(configJSON: chain)
+        XCTAssertThrowsError(try XrayCore(configJSON: chain.replacingOccurrences(of: #""dialerProxy":"exit""#, with: #""dialerProxy":"missing""#)))
+        let wireguard = #"{"outbounds":[{"protocol":"wireguard","settings":{"secretKey":"4242424242424242424242424242424242424242424242424242424242424242","address":["10.44.0.2"],"remoteDNS":["192.0.2.53"],"peers":[{"publicKey":"6363636363636363636363636363636363636363636363636363636363636363","endpoint":"192.0.2.1:51820"}]}}]}"#
+        _ = try XrayCore(configJSON: wireguard)
+        XCTAssertThrowsError(try XrayCore(configJSON: wireguard.replacingOccurrences(of: "192.0.2.53", with: "dns.example")))
     }
 }
 
