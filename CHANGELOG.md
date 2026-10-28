@@ -4,7 +4,7 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin core `e4699e6bf7f44af0c74d500660f47eddeb959de1` for Xray-core v26.10.21
+- Pin core `0a6583da2f0d06b50145ccb6018993f007dff261` for Xray-core v26.10.21
   compatibility, with exact tree and Cargo.lock digests. Synchronize canonical
   Apple/Android sources and tests; C ABI remains 1.12 and core version 0.8.1.
 - Carry hybrid-only REALITY profiles, tunnel-owned WireGuard `remoteDNS`,
@@ -26,9 +26,14 @@ Development source synchronization; the next release version has not been chosen
   examples stay on 0.8.1. A future release needs matching core version/tag,
   new release evidence and fresh artifact provenance; prior release acceptance
   does not establish acceptance of this development snapshot.
-- Track Android network-change coordination separately in
-  [core #89](https://github.com/aimalygin/xray-rust/issues/89).
-  Hosts still own observers; existing rebind APIs and FD ownership are unchanged.
+- Add the opt-in Android `XrayNetworkChangeCoordinator` from
+  [core #97](https://github.com/aimalygin/xray-rust/pull/97), with copied callback
+  metadata, event coalescing, per-session shutdown fencing and independent
+  Hysteria2/WireGuard request outcomes. Hosts retain carrier selection, actual
+  socket binding and borrowed-fd ownership. Include deterministic tests, real
+  JNI checks and a compiled fd-session example. Physical Wi-Fi/cellular
+  validation remains open in [core #89](https://github.com/aimalygin/xray-rust/issues/89).
+- Include reviewed base64 0.23.1, blake2 0.11.0 and h2 0.4.20 core updates.
 
 ## 0.8.1 - 2026-10-18
 
