@@ -7,6 +7,19 @@ import XrayAppleTunnel
 // Use public imports only: this exercises the packaged SDK, rather than
 // reaching into adapter internals with @testable.
 final class SdkConsumerTests: XCTestCase {
+    func testHTTPAndHTTPSImportThroughPublicPackageAPI() throws {
+        XCTAssertTrue(XrayCore.ffiInfo.supportsProfileImport(.http))
+        for scheme in ["http", "https"] {
+            let profile = try XrayProfileImporter.profile(
+                from: "\(scheme)://synthetic:p%40ss@proxy.example:8443#Proxy", format: .http,
+                dnsServers: ["192.0.2.53"])
+            XCTAssertEqual(profile.name, "Proxy")
+            XCTAssertEqual(profile.serverAddress, "proxy.example")
+            try XrayMobileDNSPreflight.validate(profile.configJSON)
+            _ = try XrayCore(configJSON: profile.configJSON)
+        }
+    }
+
     func testHostOptionsAndIdleRebindThroughPackagedFFI() throws {
         let info = XrayCore.ffiInfo
         XCTAssertEqual(info.version.major, 1)

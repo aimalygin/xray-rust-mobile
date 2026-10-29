@@ -8,8 +8,22 @@ import org.xrayrust.mobile.XrayCore
 import org.xrayrust.mobile.XrayCoreException
 import org.xrayrust.mobile.XrayProfileFormat
 import org.xrayrust.mobile.XrayProfileImporter
+import org.xrayrust.mobile.supportsProfileImport
 
 class SdkTransportOptionsNativeTest {
+    @Test fun httpAndHttpsImportThroughPublicPackageApi() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        assertTrue(XrayCore.ffiInfo().supportsProfileImport(XrayProfileFormat.Http))
+        for (scheme in listOf("http", "https")) {
+            val profile = XrayProfileImporter.profile(
+                "$scheme://synthetic:p%40ss@proxy.example:8443#Proxy", XrayProfileFormat.Http,
+                dnsServers = listOf("192.0.2.53"))
+            assertEquals("Proxy", profile.name)
+            assertEquals("proxy.example", profile.serverAddress)
+            XrayCore.create(profile.configJson).use { }
+        }
+    }
+
     @Test fun salamanderAndHoppingSurvivePublicImportAndLoad() {
         assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
         val profile = XrayProfileImporter.profile(

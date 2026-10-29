@@ -14,8 +14,8 @@ retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
 unconfirmed 5% latency non-regression bound accepted for this release.
 
 The development branch tracks **Unreleased** changes against core
-[`ea6ebbf`](https://github.com/aimalygin/xray-rust/commit/ea6ebbf0634ae871d2a2221f3cde162885881c90),
-which includes SOCKS5 link import (C ABI 1.13), the Xray-core v26.10.21 migration and the opt-in Android
+[`6a84f88`](https://github.com/aimalygin/xray-rust/commit/6a84f8833c7cad09ea3cd4eaa324f022f73851e5),
+which includes HTTP/HTTPS and SOCKS5 link import (C ABI 1.14), the Xray-core v26.10.21 migration and the opt-in Android
 network-change coordinator from [core #97](https://github.com/aimalygin/xray-rust/pull/97). See the
 [core migration record](https://github.com/aimalygin/xray-rust/blob/e4699e6bf7f44af0c74d500660f47eddeb959de1/docs/xray-core-v26.10.21-migration.md) for verified scope and limits.
 This source synchronization leaves the last released version fields at 0.8.1;
@@ -56,11 +56,21 @@ See the [full results and methodology](https://github.com/aimalygin/xray-rust/bl
 
 This project is unofficial and is not affiliated with XTLS or Xray-core.
 
+## Development HTTP proxy import
+
+Build this source snapshot with its pinned core, then check
+`XrayCore.ffiInfo.supportsProfileImport(.http)` in Swift or
+`XrayCore.ffiInfo().supportsProfileImport(XrayProfileFormat.Http)` in Kotlin.
+Pass either `http://` or `https://` to the matching profile importer. HTTPS
+validates the proxy certificate and name; explicit resolver IPs use TCP DNS.
+See the [accepted URI subset and examples](https://github.com/aimalygin/xray-rust/blob/6a84f8833c7cad09ea3cd4eaa324f022f73851e5/docs/http-profile-import.md).
+Published 0.8.1 binaries do not provide this new capability.
+
 ## Version mapping
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| Unreleased source snapshot | commit pin; core reports `0.8.1` | `e4699e6bf7f44af0c74d500660f47eddeb959de1` | `1.12` |
+| Unreleased source snapshot | commit pin; core reports `0.8.1` | `6a84f8833c7cad09ea3cd4eaa324f022f73851e5` | `1.14` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
