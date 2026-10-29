@@ -4,9 +4,16 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin core `0a6583da2f0d06b50145ccb6018993f007dff261` for Xray-core v26.10.21
+- Add offline `socks://` / `socks5://` import through shared Rust and the
+  canonical Swift/Kotlin APIs. Preserve Unicode/plain/Base64 credentials,
+  IPv6 and names; reject unsupported parameters and partial credentials.
+  ABI 1.13 adds `SOCKS_PROFILE_IMPORT`; older native libraries fail the
+  format capability check before invocation. Include shared fixtures and
+  real Swift/JNI import tests. New binaries are not published by this sync.
+
+- Pin core `ea6ebbf0634ae871d2a2221f3cde162885881c90` for Xray-core v26.10.21
   compatibility, with exact tree and Cargo.lock digests. Synchronize canonical
-  Apple/Android sources and tests; C ABI remains 1.12 and core version 0.8.1.
+  Apple/Android sources and tests; C ABI is 1.13; core version remains 0.8.1.
 - Carry hybrid-only REALITY profiles, tunnel-owned WireGuard `remoteDNS`,
   `sockopt.dialerProxy`, the new bounded UDP-hop mask, HTTPUpgrade headers,
   QUIC v2 sniffing, and the emSign trust-root removal. QUIC transport remains
@@ -17,7 +24,7 @@ Development source synchronization; the next release version has not been chosen
   and updated Rust dependencies from core. Relay UDP datagrams remain plain.
   SOCKS carrier bootstrap now resolves server domains before tunnel startup
   on both platforms and excludes carrier IPs from Apple tunnel routes.
-  HTTP outbound TCP CONNECT is available through canonical JSON; SOCKS share-link import remains unsupported.
+  HTTP outbound TCP CONNECT is available through canonical JSON.
 - Bring Android unmetered VPN declaration, cached FFI metadata, checked native
   statistics, shared snapshot/enum decoding and shutdown error preservation
   from core #82/#88 into the packaged SDK.
