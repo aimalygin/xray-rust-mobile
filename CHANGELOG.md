@@ -2,7 +2,43 @@
 
 ## Unreleased
 
-Development source synchronization; the next release version has not been chosen.
+## 0.9.0 - 2026-11-01
+
+Release candidate preparation; artifacts are not yet published.
+
+- Pin the 0.9.0 core candidate `30928ad51b4a434546cf143f8e385a8746523172`
+  with exact tree and Cargo.lock digests. Synchronize canonical Apple/Android
+  sources, the JNI bridge and tests; C ABI is 1.15 and the core reports 0.9.0.
+  The pin stays in candidate commit mode until the annotated `v0.9.0` core tag
+  exists. See the
+  [core 0.9.0 release preparation](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md).
+- Add Swift and Kotlin `XrayCore.cancelOutboundProbes()` (ABI 1.15,
+  `OUTBOUND_PROBE_CANCEL`). It ends only the on-demand probes already running;
+  later probes run normally. Startup-probe preflights and the teardown latch
+  of `stop`/`close` keep their behavior.
+- Android: run the reference `XrayVpnService` startup probe before
+  `Builder.establish()`, as on Apple. Kotlin adds
+  `XrayCore.preflightStartupProbe()` and the `StartupProbePreflight` capability.
+  Add the geodata search directory and policy (`Exclusive` by default),
+  `XrayTunInterface` with `VpnService.Builder.applyXrayTunInterface(dnsAnchor)`,
+  live TCP remote TUN counters with `XrayTunStats.uplinkBytes`/`downlinkBytes`,
+  and API 24–25 and partial-burst fixes in `XrayNetworkChangeCoordinator`.
+- Per-outbound accounting reports `activeUplinkBytes`/`activeDownlinkBytes`
+  for opening and active connections; they are absent with an older native
+  library.
+- Include the core's classic Shadowsocks AEAD client, imported from `ss://`
+  links through the existing Shadowsocks 2022 format and capability, VLESS Mux,
+  XHTTP H3 UDP hopping, the Mux slow-reader and TUN TCP receive-window fixes,
+  the WireGuard resolver fallback and XHTTP/gRPC window and memory changes. See
+  the [core changelog](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/CHANGELOG.md#090---2026-11-01).
+- Require the new native suites (startup-probe preflight, geodata, TUN
+  statistics) in the host JNI check, and cover classic Shadowsocks AEAD import
+  and probe cancellation through the public package API on both platforms.
+- Select the core `v09` release-evidence workflow for 0.9 versions. Publication
+  requires its successful run on the exact pinned commit and tree; v0.8 runs do
+  not qualify.
+- Keep the Apple artifact lock and SwiftPM checksum unprepared. Published
+  installation examples stay on 0.8.1 until the 0.9.0 packages exist.
 
 - Add offline `http://` / `https://` import as Swift `.http` and Kotlin
   `XrayProfileFormat.Http`. Preserve percent-encoded Basic credentials,
@@ -19,9 +55,8 @@ Development source synchronization; the next release version has not been chosen
   format capability check before invocation. Include shared fixtures and
   real Swift/JNI import tests. New binaries are not published by this sync.
 
-- Pin core `6a84f8833c7cad09ea3cd4eaa324f022f73851e5` for Xray-core v26.10.21
-  compatibility, with exact tree and Cargo.lock digests. Synchronize canonical
-  Apple/Android sources and tests; C ABI is 1.14; core version remains 0.8.1.
+- Synchronize Xray-core v26.10.21 compatibility from core
+  `6a84f8833c7cad09ea3cd4eaa324f022f73851e5` (C ABI 1.14).
 - Carry hybrid-only REALITY profiles, tunnel-owned WireGuard `remoteDNS`,
   `sockopt.dialerProxy`, the new bounded UDP-hop mask, HTTPUpgrade headers,
   QUIC v2 sniffing, and the emSign trust-root removal. QUIC transport remains
@@ -36,11 +71,9 @@ Development source synchronization; the next release version has not been chosen
 - Bring Android unmetered VPN declaration, cached FFI metadata, checked native
   statistics, shared snapshot/enum decoding and shutdown error preservation
   from core #82/#88 into the packaged SDK.
-- Reset the Apple artifact lock and checksum to unprepared placeholders;
-  source builds and CI use a freshly built XCFramework. Published installation
-  examples stay on 0.8.1. A future release needs matching core version/tag,
-  new release evidence and fresh artifact provenance; prior release acceptance
-  does not establish acceptance of this development snapshot.
+- Source builds and CI use a freshly built XCFramework. Publication needs the
+  matching core tag, new release evidence and fresh artifact provenance; prior
+  release acceptance does not qualify this candidate.
 - Add the opt-in Android `XrayNetworkChangeCoordinator` from
   [core #97](https://github.com/aimalygin/xray-rust/pull/97), with copied callback
   metadata, event coalescing, per-session shutdown fencing and independent

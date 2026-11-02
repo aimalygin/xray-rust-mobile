@@ -41,8 +41,10 @@ enum class XrayFfiCapability(val mask: Long) {
     OutboundProbe(1L shl 22),
     HysteriaStreamLimits(1L shl 23),
     TunAdmission(1L shl 24),
+    StartupProbePreflight(1L shl 25),
     SocksProfileImport(1L shl 26),
     HttpProfileImport(1L shl 27),
+    OutboundProbeCancel(1L shl 28),
 }
 
 /** Concurrent flows per Hysteria outbound; all inbounds share one bounded session. */
@@ -234,12 +236,34 @@ data class XrayConnectionInfo(
     val startedUnixMs: Long,
 )
 
+/**
+ * Per-outbound accounting for the managed connections of this core.
+ *
+ * [revision] is shared with [XrayConnectionSnapshot] and advances when a connection opens, becomes
+ * active, is asked to close or completes. Relayed bytes alone do not advance it, so a traffic meter
+ * must read the byte counters on every poll instead of skipping unchanged revisions.
+ */
 data class XrayOutboundAccountingSnapshot(
     val schemaVersion: Int,
     val revision: Long,
     val outbounds: List<XrayOutboundAccounting>,
 )
 
+/**
+ * Connection counts and relayed payload bytes for one outbound tag (`null` for flows without one).
+ *
+ * Bytes are application payload between the inbound client and the target: uplink toward the
+ * target, downlink back. Transport framing, encryption and handshakes are not counted.
+ *
+ * @property uplinkBytes payload bytes of completed connections only; a connection adds its bytes
+ *   once, when it leaves the inventory.
+ * @property downlinkBytes downlink counterpart of [uplinkBytes].
+ * @property activeUplinkBytes payload bytes relayed so far by the opening and active connections
+ *   routed to this outbound, read live when the snapshot is taken. A completing connection moves
+ *   its bytes into [uplinkBytes] under the same lock, so `uplinkBytes + activeUplinkBytes` never
+ *   decreases between snapshots. `null` when the loaded native library predates this field.
+ * @property activeDownlinkBytes downlink counterpart of [activeUplinkBytes].
+ */
 data class XrayOutboundAccounting(
     val outboundTag: String?,
     val openedConnections: Long,
@@ -247,6 +271,8 @@ data class XrayOutboundAccounting(
     val hostClosedConnections: Long,
     val uplinkBytes: Long,
     val downlinkBytes: Long,
+    val activeUplinkBytes: Long? = null,
+    val activeDownlinkBytes: Long? = null,
 )
 
 enum class XrayTcpSlowFlowEventKind(internal val ffiValue: Int) {
@@ -510,6 +536,8 @@ internal fun parseOutboundAccountingSnapshot(json: String): XrayOutboundAccounti
             hostClosedConnections = outbound.getLong("hostClosedConnections"),
             uplinkBytes = outbound.getLong("uplinkBytes"),
             downlinkBytes = outbound.getLong("downlinkBytes"),
+            activeUplinkBytes = outbound.optionalLong("activeUplinkBytes"),
+            activeDownlinkBytes = outbound.optionalLong("activeDownlinkBytes"),
         )
     }
     return XrayOutboundAccountingSnapshot(
@@ -574,6 +602,8 @@ class XrayCore private constructor(handle: Long) : Closeable {
             fileLoggingDirectory: File? = null,
             hysteriaStreamLimits: XrayHysteriaStreamLimits? = null,
             tunAdmission: XrayTunAdmissionOptions? = null,
+            geodataSearchDirectory: File? = null,
+            geodataSearchPolicy: XrayGeodataSearchPolicy = XrayGeodataSearchPolicy.Exclusive,
         ): XrayCore {
             val core = XrayCore(nativeNew())
             try {
@@ -605,6 +635,9 @@ class XrayCore private constructor(handle: Long) : Closeable {
                 }
                 if (fileLoggingDirectory != null) {
                     core.setFileLogging(fileLoggingDirectory)
+                }
+                if (geodataSearchDirectory != null) {
+                    core.setGeodataSearchDirectory(geodataSearchDirectory, geodataSearchPolicy)
                 }
                 core.loadConfig(configJson)
                 return core
@@ -650,6 +683,24 @@ class XrayCore private constructor(handle: Long) : Closeable {
         private external fun nativeNew(): Long
     }
 
+    /**
+     * Runs the configured startup probe without binding listeners or starting TUN packet I/O, so
+     * a VPN host can check the outbound before it installs routes and DNS.
+     *
+     * Call it off the main thread on a created, not yet started core; it blocks until the probe
+     * succeeds, fails or times out, and returns at once when no probe is configured. [stop] and
+     * [close] cancel a pending preflight before draining it; a cancelled preflight throws
+     * [XrayCoreException]. The probe is not consumed and [start] still runs it, so create the
+     * later data-path core without one to avoid probing twice. Requires ABI 1.12.
+     */
+    fun preflightStartupProbe() {
+        requireFeature(12, XrayFfiCapability.StartupProbePreflight)
+        withDataPathHandle { nativePreflightStartupProbe(it) }
+    }
+
+    /** Signals a pending [preflightStartupProbe] to stop without waiting for it to return. */
+    internal fun cancelStartupProbePreflight() = cancelOutboundProbesForLifecycle()
+
     fun start() = withLifecycleHandle { nativeStart(it) }
 
     fun stop() = withLifecycleHandle { nativeStop(it) }
@@ -667,7 +718,10 @@ class XrayCore private constructor(handle: Long) : Closeable {
         withDataPathHandle { nativeClearOutboundSelectorOverride(it, groupTag) }
     }
 
-    /** Replaces routing rules and compiled geodata matchers for new flows. */
+    /**
+     * Replaces routing rules and compiled geodata matchers for new flows. Referenced `.dat` files
+     * are read again from the geodata directory passed to [create], with the same policy.
+     */
     fun replaceRoutingPolicy(configJson: String) {
         requireCapability(XrayFfiCapability.RoutingPolicyUpdate)
         require(configJson.isNotEmpty()) { "routing policy JSON must not be empty" }
@@ -734,8 +788,9 @@ class XrayCore private constructor(handle: Long) : Closeable {
      * or typed failure. A null or empty [outboundTag] uses the default outbound; routing rules and
      * selector overrides are bypassed, and health snapshots are not updated.
      *
-     * Blocks the calling thread for at most [timeoutMs], so call it off the main thread. [stop]
-     * and [close] cancel probes before draining shared calls. An empty [url], a [timeoutMs] outside 1..60000, or
+     * Blocks the calling thread for at most [timeoutMs], so call it off the main thread.
+     * [cancelOutboundProbes] ends it early and keeps later probes working; [stop] and [close]
+     * cancel probes before draining shared calls. An empty [url], a [timeoutMs] outside 1..60000, or
      * an argument with an embedded NUL throws [IllegalArgumentException]. A non-empty unsupported
      * URL, an unknown [outboundTag], or a missing default outbound throws [XrayCoreException]
      * with code INVALID_ARGUMENT (9). Neither makes any network call.
@@ -753,6 +808,22 @@ class XrayCore private constructor(handle: Long) : Closeable {
         return outboundProbeResultFromNative(
             withDataPathHandle { nativeProbeOutboundUrl(it, url, timeoutMs, outboundTag) },
         )
+    }
+
+    /**
+     * Cancels the [probeOutboundUrl] calls already running on this core, for example when the
+     * user dismisses a health check, and leaves later probes and traffic untouched. Each cancelled
+     * call throws [XrayCoreException] with code RUNTIME_ERROR (5); a probe that starts
+     * concurrently with this call may still complete. Thread-safe and does not wait for the
+     * probes; it waits only behind a concurrent lifecycle call and is a no-op after [close].
+     * Startup-probe preflights are not affected; [stop] and [close] still cancel them.
+     * Requires ABI 1.15.
+     */
+    fun cancelOutboundProbes() {
+        requireFeature(15, XrayFfiCapability.OutboundProbeCancel)
+        lifecycleLock.read {
+            if (nativeHandle != 0L) nativeCancelInflightOutboundProbes(nativeHandle)
+        }
     }
 
     fun pollTcpSlowFlowEvents(maxEvents: Int = 16): List<XrayTcpSlowFlowEvent> =
@@ -795,7 +866,7 @@ class XrayCore private constructor(handle: Long) : Closeable {
         withDataPathHandle { nativePushPacket(it, packet, length) }
     }
 
-    fun pollPacket(maxBytes: Int = 1_500): ByteArray? {
+    fun pollPacket(maxBytes: Int = XrayTunInterface.MTU): ByteArray? {
         require(maxBytes > 0) { "maxBytes must be positive" }
         val storage = ByteBuffer.allocateDirect(maxBytes)
         val lengths = IntArray(1)
@@ -817,7 +888,7 @@ class XrayCore private constructor(handle: Long) : Closeable {
     fun pollPacketsInto(
         storage: ByteBuffer,
         lengths: IntArray,
-        maxPacketBytes: Int = 1_500,
+        maxPacketBytes: Int = XrayTunInterface.MTU,
         waitMilliseconds: Int = 250,
     ): Int {
         require(storage.isDirect) { "packet storage must be a direct ByteBuffer" }
@@ -909,6 +980,14 @@ class XrayCore private constructor(handle: Long) : Closeable {
         }
     }
 
+    private fun setGeodataSearchDirectory(directory: File, policy: XrayGeodataSearchPolicy) {
+        val path = geodataSearchDirectoryPath(directory)
+        requireCapability(XrayFfiCapability.GeodataSearch)
+        withLifecycleHandle {
+            nativeSetGeodataSearchDir(it, path, policy.exclusive)
+        }
+    }
+
     private fun requireCapability(capability: XrayFfiCapability) {
         check(ffiInfo().supports(capability)) {
             "required xray FFI capability is unavailable: $capability"
@@ -939,7 +1018,12 @@ class XrayCore private constructor(handle: Long) : Closeable {
     }
 
     private fun cancelOutboundProbesForLifecycle() = lifecycleLock.read {
-        if (nativeHandle != 0L && ffiInfo().supports(XrayFfiCapability.OutboundProbe)) {
+        if (nativeHandle == 0L) return@read
+        // Since ABI 1.12 the same native latch also cancels startup-probe preflights.
+        val info = ffiInfo()
+        if (info.supports(XrayFfiCapability.OutboundProbe) ||
+            info.supports(XrayFfiCapability.StartupProbePreflight)
+        ) {
             nativeCancelOutboundProbes(nativeHandle)
         }
     }
@@ -962,9 +1046,11 @@ class XrayCore private constructor(handle: Long) : Closeable {
 
     private external fun nativeLoadConfig(handle: Long, configJson: String)
     private external fun nativeConfigWarnings(handle: Long): String?
+    private external fun nativePreflightStartupProbe(handle: Long)
     private external fun nativeStart(handle: Long)
     private external fun nativeStop(handle: Long)
     private external fun nativeCancelOutboundProbes(handle: Long)
+    private external fun nativeCancelInflightOutboundProbes(handle: Long)
     private external fun nativeFree(handle: Long)
     private external fun nativeSetOutboundSelectorOverride(
         handle: Long,
@@ -1008,6 +1094,11 @@ class XrayCore private constructor(handle: Long) : Closeable {
         handle: Long,
         directory: String,
         enabled: Boolean,
+    )
+    private external fun nativeSetGeodataSearchDir(
+        handle: Long,
+        directory: String,
+        exclusive: Boolean,
     )
     private external fun nativeSetStartupProbe(
         handle: Long,
@@ -1067,6 +1158,23 @@ enum class XrayDnsBootstrapMode(val ffiValue: Int) {
     StaticOnly(1),
 }
 
+/**
+ * Where `geosite:`, `geoip:` and `ext:` rules look for `.dat` files. [Exclusive] searches only
+ * the configured directory. [FallbackToDefaults] also searches the core's process defaults
+ * (working directory and executable directory), which on Android are `/` and `/system/bin`,
+ * so it is only useful for host-side tests.
+ */
+enum class XrayGeodataSearchPolicy(internal val exclusive: Boolean) {
+    FallbackToDefaults(false),
+    Exclusive(true),
+}
+
+/** Returns the path handed to the core; the core rejects a symlinked leaf directory itself. */
+internal fun geodataSearchDirectoryPath(directory: File): String {
+    require(directory.isDirectory) { "geodata search directory must already exist" }
+    return directory.absolutePath
+}
+
 data class XrayTunStats(
     val inboundPackets: Long,
     val outboundPackets: Long,
@@ -1087,11 +1195,28 @@ data class XrayTunStats(
     val tcp443FirstByteEvents: Long,
     val tcp443FirstByteDurationMsTotal: Long,
     val tcp443FirstByteDurationMsMax: Long,
-)
+    val tcpRemoteWrittenBytes: Long = 0,
+    val tcpRemoteReadBytes: Long = 0,
+) {
+    /**
+     * Live payload bytes sent towards remotes by all TUN flows, TCP plus UDP, whichever outbound
+     * carries them (including direct ones). The counters only grow from [XrayCore.create] until
+     * the core is closed, so the difference between two samples is the traffic in between. Proxy
+     * protocol overhead, startup or outbound probes and SOCKS/HTTP inbounds are not counted.
+     * For live bytes per outbound, read [XrayCore.outboundAccountingSnapshot] and add
+     * [XrayOutboundAccounting.activeUplinkBytes] to [XrayOutboundAccounting.uplinkBytes].
+     */
+    val uplinkBytes: Long
+        get() = tcpRemoteWrittenBytes + udpRemoteWrittenBytes
 
-internal const val NATIVE_TUN_STATS_VALUE_COUNT = 19
+    /** Live payload bytes received from remotes by all TUN flows; counted as [uplinkBytes]. */
+    val downlinkBytes: Long
+        get() = tcpRemoteReadBytes + udpRemoteReadBytes
+}
 
-/** Decodes the `XrayTunStats` carrier returned by the JNI bridge, in C ABI field order. */
+internal const val NATIVE_TUN_STATS_VALUE_COUNT = 21
+
+/** Decodes the `XrayTunStats` carrier returned by the JNI bridge; new values are appended. */
 internal fun tunStatsFromNative(values: LongArray): XrayTunStats {
     check(values.size == NATIVE_TUN_STATS_VALUE_COUNT) {
         "unexpected native TUN stats size: ${values.size}"
@@ -1116,6 +1241,8 @@ internal fun tunStatsFromNative(values: LongArray): XrayTunStats {
         tcp443FirstByteEvents = values[16],
         tcp443FirstByteDurationMsTotal = values[17],
         tcp443FirstByteDurationMsMax = values[18],
+        tcpRemoteWrittenBytes = values[19],
+        tcpRemoteReadBytes = values[20],
     )
 }
 
