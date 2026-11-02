@@ -6,6 +6,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.xrayrust.mobile.XrayCore
 import org.xrayrust.mobile.XrayCoreException
+import org.xrayrust.mobile.XrayFfiCapability
 import org.xrayrust.mobile.XrayProfileFormat
 import org.xrayrust.mobile.XrayProfileImporter
 import org.xrayrust.mobile.supportsProfileImport
@@ -21,6 +22,29 @@ class SdkTransportOptionsNativeTest {
             assertEquals("Proxy", profile.name)
             assertEquals("proxy.example", profile.serverAddress)
             XrayCore.create(profile.configJson).use { }
+        }
+    }
+
+    @Test fun classicShadowsocksAeadImportThroughPublicPackageApi() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        // Classic AEAD-2017 shares the Shadowsocks import format and capability.
+        assertTrue(XrayCore.ffiInfo().supportsProfileImport(XrayProfileFormat.Shadowsocks2022))
+        val profile = XrayProfileImporter.profile(
+            "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpzeW50aGV0aWMtc2VjcmV0@ss.example:8388#Classic",
+            XrayProfileFormat.Shadowsocks2022)
+        assertEquals("Classic", profile.name)
+        assertEquals("ss.example", profile.serverAddress)
+        assertTrue(profile.configJson.contains("\"method\":\"chacha20-ietf-poly1305\""))
+        assertFalse(profile.toString().contains("synthetic-secret"))
+        XrayCore.create(profile.configJson).use { }
+    }
+
+    @Test fun inflightProbeCancelThroughPublicPackageApi() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        assertTrue(XrayCore.ffiInfo().supports(XrayFfiCapability.OutboundProbeCancel))
+        XrayCore.create("""{"outbounds":[{"protocol":"freedom"}]}""").use { core ->
+            core.cancelOutboundProbes()
+            core.cancelOutboundProbes()
         }
     }
 

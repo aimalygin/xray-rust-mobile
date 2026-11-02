@@ -89,21 +89,21 @@ class VersionedEvidenceRunTests(unittest.TestCase):
         mock=self.root/'bin/gh'
         mock.write_text('''#!/usr/bin/env python3
 import os,sys
-url=sys.argv[2]
-if '/workflows/' in url and 'v07-release-evidence.yml' not in url: sys.exit(9)
+url=sys.argv[2];profile=os.environ.get('PROFILE','v07')
+if '/workflows/' in url and profile+'-release-evidence.yml' not in url: sys.exit(9)
 if '/workflows/' in url and '/runs?' not in url:
- print('42\\t.github/workflows/v07-release-evidence.yml\\tactive')
+ print('42\\t.github/workflows/'+profile+'-release-evidence.yml\\tactive')
 elif '/runs?' in url: print('123')
 elif '/artifacts?' in url:
- if os.environ.get('CASE')!='expired':print('v07-release-evidence-'+('1'*40)+'\\t'+('1'*40))
+ if os.environ.get('CASE')!='expired':print(profile+'-release-evidence-'+('1'*40)+'\\t'+('1'*40))
 elif url.endswith('/runs/123'):
  tree=('4' if os.environ.get('CASE')=='wrong-tree' else '2')*40
  print('42\\t'+('1'*40)+'\\t'+tree+'\\texample/core\\tworkflow_dispatch\\tcompleted\\tsuccess')
 else:sys.exit(8)
 ''');mock.chmod(0o755)
 
-    def run_verifier(self,case='valid'):
-        env=dict(os.environ,PATH=str(self.root/'bin')+os.pathsep+os.environ['PATH'],CASE=case)
+    def run_verifier(self,case='valid',profile='v07'):
+        env=dict(os.environ,PATH=str(self.root/'bin')+os.pathsep+os.environ['PATH'],CASE=case,PROFILE=profile)
         return subprocess.run(['bash',str(self.root/'scripts/verify-core-release-evidence-run.sh')],env=env,capture_output=True,text=True)
 
     def test_v07_queries_its_own_workflow_and_exact_identity(self):
@@ -112,6 +112,21 @@ else:sys.exit(8)
     def test_wrong_tree_and_missing_live_artifact_are_rejected(self):
         for case in ['wrong-tree','expired']:
             with self.subTest(case=case):self.assertNotEqual(self.run_verifier(case).returncode,0)
+
+    def test_v09_requires_its_own_workflow(self):
+        (self.root/'release/version.env').write_text('XRAY_MOBILE_VERSION=0.9.0\n')
+        core=self.root/'release/core.env';core.write_text(core.read_text().replace('v0.7.0-rc.1','v0.9.0'))
+        r=self.run_verifier(profile='v09');self.assertEqual(r.returncode,0,r.stderr)
+        self.assertNotEqual(self.run_verifier(profile='v08').returncode,0)
+
+    def test_profile_selector_rejects_unknown_minor_versions(self):
+        selector=ROOT/'scripts/release-evidence-profile.sh'
+        for version,profile in [('0.8.1','v08'),('0.9.0','v09'),('v0.9.0-rc.1','v09')]:
+            r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
+            self.assertEqual((r.returncode,r.stdout.strip()),(0,profile),version)
+        for version in ['0.10.0','1.0.0','0.9','0.9.0-rc.0']:
+            r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
+            self.assertNotEqual(r.returncode,0,version)
 
 
 if __name__=='__main__':unittest.main()

@@ -20,6 +20,32 @@ final class SdkConsumerTests: XCTestCase {
         }
     }
 
+    func testClassicShadowsocksAEADImportThroughPublicPackageAPI() throws {
+        // Classic AEAD-2017 shares the Shadowsocks import format and capability.
+        XCTAssertTrue(XrayCore.ffiInfo.supportsProfileImport(.shadowsocks2022))
+        let profile = try XrayProfileImporter.profile(
+            from: "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpzeW50aGV0aWMtc2VjcmV0@ss.example:8388#Classic",
+            format: .shadowsocks2022)
+        XCTAssertEqual(profile.name, "Classic")
+        XCTAssertEqual(profile.serverAddress, "ss.example")
+        XCTAssertTrue(profile.configJSON.contains(#""method":"chacha20-ietf-poly1305""#))
+        XCTAssertFalse(String(reflecting: profile).contains("synthetic-secret"))
+        try XrayMobileDNSPreflight.validate(profile.configJSON)
+        _ = try XrayCore(configJSON: profile.configJSON)
+    }
+
+    func testInflightProbeCancelThroughPackagedFFI() throws {
+        XCTAssertTrue(XrayCore.ffiInfo.supports(.outboundProbeCancel))
+        let core = try XrayCore(configJSON:
+            """
+            {"inbounds":[{"protocol":"tun"}],"outbounds":[{"protocol":"freedom"}]}
+            """)
+        try core.cancelOutboundProbes()
+        try core.start()
+        defer { try? core.stop() }
+        try core.cancelOutboundProbes()
+    }
+
     func testHostOptionsAndIdleRebindThroughPackagedFFI() throws {
         let info = XrayCore.ffiInfo
         XCTAssertEqual(info.version.major, 1)

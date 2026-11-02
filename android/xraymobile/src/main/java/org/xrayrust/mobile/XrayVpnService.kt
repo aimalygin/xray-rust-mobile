@@ -8,7 +8,9 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.StructPollfd
+import java.io.Closeable
 import java.io.EOFException
+import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -231,6 +233,77 @@ internal class XrayAsyncStartCoordinator<Session>(
     }
 }
 
+/** Thrown on the start worker once the lifecycle has cancelled its attempt. */
+internal class XrayStartCancelledException : RuntimeException()
+
+/**
+ * Runs the startup probe on a separate unstarted core before the VPN interface is established,
+ * so a slow or failing probe never leaves apps without a network (#69). [cancel] lets the stop
+ * path end a pending native probe without waiting for the start worker.
+ */
+internal class XrayStartupProbePreflight<Core : Closeable>(
+    private val lifecycle: XrayTunnelStateMachine<*>,
+    private val preflight: (Core) -> Unit,
+    private val cancelPreflight: (Core) -> Unit,
+) {
+    private val lock = Any()
+    private var pendingToken: XrayTunnelStateMachine.StartToken? = null
+    private var pendingCore: Core? = null
+
+    /**
+     * Returns only after [startupProbe] passed while [token] is still active, or at once without a
+     * probe. The core from [createCore] is closed before this returns or throws, so the data-path
+     * core must be created without a probe. A cancelled start throws [XrayStartCancelledException];
+     * probe failures propagate unchanged.
+     */
+    fun run(
+        token: XrayTunnelStateMachine.StartToken,
+        startupProbe: XrayStartupProbeOptions?,
+        createCore: (XrayStartupProbeOptions) -> Core,
+    ) {
+        if (startupProbe == null) {
+            return
+        }
+        createCore(startupProbe).use { core ->
+            // Serialized with cancel(): a stop either prevents the native call or finds the core.
+            val registered = synchronized(lock) {
+                lifecycle.isStartActive(token).also { active ->
+                    if (active) {
+                        pendingToken = token
+                        pendingCore = core
+                    }
+                }
+            }
+            if (!registered) {
+                throw XrayStartCancelledException()
+            }
+            try {
+                preflight(core)
+            } finally {
+                synchronized(lock) {
+                    pendingToken = null
+                    pendingCore = null
+                }
+            }
+        }
+        if (!lifecycle.isStartActive(token)) {
+            throw XrayStartCancelledException()
+        }
+    }
+
+    /** Cancels the pending native probe of a start that the lifecycle has already cancelled. */
+    fun cancel() {
+        val core = synchronized(lock) {
+            val token = pendingToken ?: return
+            if (lifecycle.isStartActive(token)) {
+                return
+            }
+            pendingCore
+        } ?: return
+        cancelPreflight(core)
+    }
+}
+
 internal fun <Session> teardownFailedXraySession(
     lifecycle: XrayTunnelStateMachine<Session>,
     failedSession: Session,
@@ -319,6 +392,11 @@ open class XrayVpnService : VpnService() {
         lifecycle = lifecycle,
         executor = startExecutor,
     )
+    private val startupProbePreflight = XrayStartupProbePreflight<XrayCore>(
+        lifecycle = lifecycle,
+        preflight = XrayCore::preflightStartupProbe,
+        cancelPreflight = XrayCore::cancelStartupProbePreflight,
+    )
     private val dnsBootstrapResolver = BoundedAndroidDnsBootstrapResolver()
     private val runtimeGeneration = AtomicLong()
     private val fatalTunErrors = AtomicLong()
@@ -326,6 +404,17 @@ open class XrayVpnService : VpnService() {
     /** Optional host policy, created after the VPN interface is established. */
     protected open fun tunAdmissionOptions(): XrayTunAdmissionOptions? = null
 
+    /**
+     * Optional existing directory with `geosite.dat`, `geoip.dat` and `ext:` files, searched
+     * exclusively. The startup-probe preflight core and the data-path core both load it, so a
+     * missing file or code reaches [onXrayTunnelStartFailed].
+     */
+    protected open fun geodataSearchDirectory(): File? = null
+
+    /**
+     * Starts asynchronously. A [startupProbe] runs before `Builder.establish()`, so its failure,
+     * timeout or cancellation leaves routes and DNS untouched; requires ABI 1.12.
+     */
     open fun startXrayTunnel(
         configJson: String,
         tunBackend: XrayTunBackend = DEFAULT_XRAY_TUN_BACKEND,
@@ -392,22 +481,35 @@ open class XrayVpnService : VpnService() {
         try {
             ensureStartIsActive(attempt)
             val preparedConfig = prepareAndroidVpnConfig(configJson)
+            val geodataSearchDirectory = geodataSearchDirectory()
             ensureStartIsActive(attempt)
+            // No TUN fd, listeners or admission policy: this core only runs the probe. Routing
+            // still compiles geodata rules, so it needs the same search directory.
+            startupProbePreflight.run(attempt, startupProbe) { probe ->
+                XrayCore.create(
+                    configJson = preparedConfig.json,
+                    vpnService = this,
+                    startupProbe = probe,
+                    dnsBootstrapMode = XrayDnsBootstrapMode.StaticOnly,
+                    geodataSearchDirectory = geodataSearchDirectory,
+                )
+            }
             val tunnelBuilder = buildTunnel()
             if (preparedConfig.usesLocalDnsAnchor) {
-                tunnelBuilder.addDnsServer(XRAY_TUN_DNS_ANCHOR)
+                tunnelBuilder.addDnsServer(XrayTunInterface.DNS_ANCHOR)
             }
             tunnel = tunnelBuilder.establish()
                 ?: error("failed to establish Android VPN tunnel")
             ensureStartIsActive(attempt)
 
+            // The preflight above already ran the startup probe; the data path must not repeat it.
             xrayCore = XrayCore.create(
                 configJson = preparedConfig.json,
                 vpnService = this,
                 tunRuntimeProfile = tunRuntimeProfile,
-                startupProbe = startupProbe,
                 dnsBootstrapMode = XrayDnsBootstrapMode.StaticOnly,
                 tunAdmission = tunAdmissionOptions(),
+                geodataSearchDirectory = geodataSearchDirectory,
                 tunFileDescriptor = when (tunBackend) {
                     XrayTunBackend.PacketPump -> null
                     XrayTunBackend.FileDescriptor -> XrayTunFileDescriptor(
@@ -461,7 +563,9 @@ open class XrayVpnService : VpnService() {
                 core = xrayCore,
                 coreStarted = coreStarted,
             )
-            if (error is StartCancelledException || error is AndroidDnsBootstrapCancelledException) {
+            if (error is XrayStartCancelledException ||
+                error is AndroidDnsBootstrapCancelledException
+            ) {
                 return XrayTunnelStartOutcome.Cancelled
             }
             return if (lifecycle.isStartFailureReportable(attempt) &&
@@ -477,7 +581,10 @@ open class XrayVpnService : VpnService() {
     open fun stopXrayTunnel() {
         when (val action = lifecycle.requestStop()) {
             XrayTunnelStopAction.None -> Unit
-            XrayTunnelStopAction.CancelStart -> startCoordinator.cancelActiveStart()
+            XrayTunnelStopAction.CancelStart -> {
+                startupProbePreflight.cancel()
+                startCoordinator.cancelActiveStart()
+            }
             is XrayTunnelStopAction.StopSession -> {
                 startCoordinator.cancelActiveStart()
                 try {
@@ -544,10 +651,8 @@ open class XrayVpnService : VpnService() {
     protected open fun buildTunnel(): Builder {
         val builder = Builder()
             .setSession("xray-rust")
-            .setMtu(PACKET_BYTES)
-            .addAddress("10.7.0.1", 32)
+            .applyXrayTunInterface(dnsAnchor = false)
             .addRoute("0.0.0.0", 0)
-            .addAddress("fd00:7872::1", 128)
             .addRoute("::", 0)
         if (Build.VERSION.SDK_INT >= 29) {
             // A VPN of an app targeting API 29+ is metered by default, even on Wi-Fi.
@@ -563,7 +668,7 @@ open class XrayVpnService : VpnService() {
 
     private fun ensureStartIsActive(attempt: XrayTunnelStateMachine.StartToken) {
         if (!lifecycle.isStartActive(attempt)) {
-            throw StartCancelledException()
+            throw XrayStartCancelledException()
         }
     }
 
@@ -730,8 +835,6 @@ open class XrayVpnService : VpnService() {
         }
     }
 
-    private class StartCancelledException : RuntimeException()
-
     private sealed interface XrayTunnelStartOutcome {
         data class Started(val session: TunnelSession) : XrayTunnelStartOutcome
         data class Failed(val error: Throwable) : XrayTunnelStartOutcome
@@ -739,7 +842,7 @@ open class XrayVpnService : VpnService() {
     }
 
     private companion object {
-        const val PACKET_BYTES = 1_500
+        const val PACKET_BYTES = XrayTunInterface.MTU
         const val MAX_PACKETS_PER_POLL = 64
         const val POLL_WAIT_MILLISECONDS = 250
         const val DNS_BOOTSTRAP_TIMEOUT_MILLISECONDS = 5_000L

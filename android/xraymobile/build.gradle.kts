@@ -157,6 +157,10 @@ afterEvaluate {
 // cannot be loaded by the host JVM used for ordinary unit tests.
 tasks.withType<Test>().configureEach {
     testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    // Canonical JVM tests read core constants (for example the TUN interface)
+    // from an ancestor core workspace. Run them from the pinned core's module
+    // directory, as the core does; the synced test sources are verified identical.
+    providers.gradleProperty("xrayCoreTestWorkingDir").orNull?.let { workingDir(file(it)) }
     providers.gradleProperty("xrayNativeImportLibraryPath").orNull?.let { path ->
         systemProperty("java.library.path", path)
         systemProperty("xray.test.nativeImport", "true")

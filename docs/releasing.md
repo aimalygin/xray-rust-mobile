@@ -1,16 +1,16 @@
 # Release process
 
-The current branch tracks **Unreleased** changes and pins core commit
-`e4699e6bf7f44af0c74d500660f47eddeb959de1`, with C ABI 1.12. Both projects
-retain their last released version fields, 0.8.1; this development snapshot is
-not the published 0.8.1 release. The core is pinned by commit with no claimed
-tag, and the Apple artifact lock/checksum remain unprepared. These guards
-block publication while allowing source builds and CI.
-
-Release preparation is deferred until the intended feature scope and acceptance
-checks are settled. Choose the next version and align both repositories as a
-separate release task, with a verified core tag, fresh evidence and canonical
-artifact provenance. Previous release acceptance does not qualify this snapshot.
+The 0.9.0 preparation requested on 2026-11-01 pins the exact untagged core
+candidate `30928ad51b4a434546cf143f8e385a8746523172` (tree
+`e55a6c3f021643bd507a611c247f2781aaabbb83`) and synchronizes C ABI 1.15. Both
+projects carry version 0.9.0. The
+[core preparation record](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md)
+tracks scope, owner decisions and remaining qualification. Publication needs
+a successful core `v09-release-evidence.yml` run on that exact commit and tree,
+then the annotated `v0.9.0` core tag; switch `release/core.env` to that tag
+without changing the commit or tree. Keep the Apple artifact lock and SwiftPM
+checksum unprepared until then. Earlier release evidence does not qualify this
+candidate.
 
 The 0.8.1 release requested on 2026-10-18 pins core
 `5b61eee201fac8639cb1dac0349e34af65db90f7` and synchronizes ABI 1.12 plus the

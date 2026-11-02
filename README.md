@@ -13,18 +13,18 @@ for the release scope. The [core 0.8.1 evidence and limitations](https://github.
 retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
 unconfirmed 5% latency non-regression bound accepted for this release.
 
-The development branch tracks **Unreleased** changes against core
-[`6a84f88`](https://github.com/aimalygin/xray-rust/commit/6a84f8833c7cad09ea3cd4eaa324f022f73851e5),
-which includes HTTP/HTTPS and SOCKS5 link import (C ABI 1.14), the Xray-core v26.10.21 migration and the opt-in Android
-network-change coordinator from [core #97](https://github.com/aimalygin/xray-rust/pull/97). See the
-[core migration record](https://github.com/aimalygin/xray-rust/blob/e4699e6bf7f44af0c74d500660f47eddeb959de1/docs/xray-core-v26.10.21-migration.md) for verified scope and limits.
-This source synchronization leaves the last released version fields at 0.8.1;
-local builds of this checkout are development snapshots, not the published
-0.8.1 artifacts. The commit pin and unprepared artifact locks block publication.
-Use the installation examples below for published 0.8.1 packages. For source
+The development branch prepares SDK **0.9.0** against the exact core candidate
+[`30928ad`](https://github.com/aimalygin/xray-rust/commit/30928ad51b4a434546cf143f8e385a8746523172)
+(C ABI 1.15): SOCKS5 and HTTP/HTTPS link import, classic Shadowsocks AEAD,
+in-flight outbound probe cancellation, Android startup-probe preflight and the
+other changes listed in [the changelog](CHANGELOG.md#090---2026-11-01). The
+[core 0.9.0 release preparation](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md)
+tracks its scope, owner decisions and remaining qualification. Nothing is
+published yet: the commit pin and unprepared artifact locks block publication
+until the core's v0.9 release evidence and annotated `v0.9.0` tag exist. Use
+the installation examples below for published 0.8.1 packages. For source
 development, build the native artifacts locally before resolving the Swift
-package; see [Unreleased changes](CHANGELOG.md#unreleased). A future release
-version and acceptance scope will be chosen separately.
+package.
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -70,7 +70,7 @@ Published 0.8.1 binaries do not provide this new capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| Unreleased source snapshot | commit pin; core reports `0.8.1` | `6a84f8833c7cad09ea3cd4eaa324f022f73851e5` | `1.14` |
+| `0.9.0` (unpublished preparation) | exact candidate | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
