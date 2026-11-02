@@ -34,6 +34,8 @@ Release candidate preparation; artifacts are not yet published.
 - Require the new native suites (startup-probe preflight, geodata, TUN
   statistics) in the host JNI check, and cover classic Shadowsocks AEAD import
   and probe cancellation through the public package API on both platforms.
+  Android unit tests run from the pinned core's module directory, where the
+  canonical tests find the core constants they compare against.
 - Select the core `v09` release-evidence workflow for 0.9 versions. Publication
   requires its successful run on the exact pinned commit and tree; v0.8 runs do
   not qualify.

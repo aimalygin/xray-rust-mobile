@@ -53,6 +53,7 @@ fi
 "$MOBILE_ROOT/android/gradlew" \
   -p "$MOBILE_ROOT/android" \
   "${tasks[@]}" \
+  "-PxrayCoreTestWorkingDir=$core/platform/android/xraymobile" \
   --dependency-verification strict \
   --no-daemon
 
