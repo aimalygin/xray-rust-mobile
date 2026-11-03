@@ -235,8 +235,28 @@ require_block_text "$checksum_pr_job" \
   'open a pull request from $branch to $GITHUB_REF_NAME manually' \
   "checksum PR failure does not provide the manual recovery path"
 require_block_text "$checksum_pr_job" \
-  'exit 1' \
-  "checksum PR failure is not fatal after printing recovery guidance"
+  '/compare/$GITHUB_REF_NAME...$branch?expand=1' \
+  "checksum PR failure does not link the manual pull request"
+reject_block_text "$checksum_pr_job" \
+  '::error' \
+  "a checksum PR that Actions may not open fails the prepare run"
+
+maven_central_job="$(extract_job "$release_workflow" maven-central)"
+require_block_text "$maven_central_job" \
+  'needs: [metadata, finalize-release]' \
+  "Maven Central is not chained after the finalized release"
+require_block_text "$maven_central_job" \
+  "if: needs.metadata.outputs.release_channel == 'stable'" \
+  "Maven Central can be called for a prerelease"
+require_block_text "$maven_central_job" \
+  'uses: ./.github/workflows/publish-maven-central.yml' \
+  "release workflow does not call the Maven Central workflow"
+reject_block_text "$maven_central_job" \
+  'write' \
+  "the Maven Central call grants write permissions"
+require_text "$central_workflow" \
+  $'  workflow_call:\n    inputs:\n      tag:' \
+  "Maven Central workflow cannot be called by the release workflow"
 
 require_text "$tag_verifier" \
   '"repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"' \

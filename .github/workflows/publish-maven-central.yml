@@ -12,6 +12,18 @@ on:
         required: true
         default: false
         type: boolean
+  # The release workflow calls this after finalizing a stable release; a
+  # manual dispatch remains for retries.
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing stable release tag to publish
+        required: true
+        type: string
+      automatic:
+        description: Publish automatically after validation
+        required: true
+        type: boolean
 
 permissions:
   contents: read

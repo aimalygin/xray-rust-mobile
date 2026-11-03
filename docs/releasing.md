@@ -42,8 +42,9 @@ never a Maven repository archive or remote Maven coordinate.
 Configure GitHub Actions to allow this repository to write packages and to
 create pull requests. For stable versions, the release workflow publishes the
 five unsigned Gradle artifacts to GitHub Packages as an authenticated mirror.
-The separate Maven Central workflow signs the immutable stable release bundle
-and is the public Android distribution path. Neither path accepts RC versions.
+The Maven Central workflow, which the release workflow calls after finalizing a
+stable release, signs the immutable stable release bundle and is the public
+Android distribution path. Neither path accepts RC versions.
 Enable immutable GitHub releases before publishing a public version. Apple
 release artifacts must be built with the
 Xcode version locked in `release/toolchains.env`; using another selected Xcode
@@ -57,17 +58,19 @@ structure; a separate job rebuilds the sources and tests the Apple products.
 Enable **Settings → Actions → General → Workflow permissions →
 Allow GitHub Actions to create and approve pull requests** for automatic
 checksum-PR creation. If that setting is intentionally disabled, the Prepare
-workflow fails after pushing
-`release/v${version}-artifact-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`. Open
-that branch against `main` manually, verify that only `Package.swift` and
+workflow still passes: it pushes
+`release/v${version}-artifact-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` and
+leaves a warning and a compare link in the run summary. Open that branch
+against `main` manually, verify that only `Package.swift` and
 `release/artifacts.env` changed, and merge it before tagging.
 
 ## Maven Central setup
 
 GitHub Packages remains an authenticated mirror produced by the release
-workflow. Maven Central is the public consumer target and uses a separate,
-owner-approved workflow that reuses the immutable Maven bundle attached to an
-existing stable release.
+workflow. Maven Central is the public consumer target. Its owner-approved
+workflow reuses the immutable Maven bundle attached to an existing stable
+release; the release workflow calls it after finalizing the GitHub release, and
+a manual dispatch remains for retries.
 
 1. Sign in to the [Central Publisher Portal](https://central.sonatype.com/) with
    the GitHub account that owns `aimalygin`. Verify that the automatically
@@ -79,12 +82,13 @@ existing stable release.
    `MAVEN_SIGNING_KEY` and `MAVEN_SIGNING_PASSWORD` in the same environment.
    Publish the corresponding primary public key to a Central-supported key
    server such as `keyserver.ubuntu.com`; do not sign with a signing subkey.
-4. Protect the environment with required reviewer approval. Dispatch
-   **Publish Maven Central** with an existing stable tag. A secret-free
-   preflight rejects RC and malformed tags before the protected environment is
-   entered. Leave `automatic`
-   disabled for the first publication, inspect the validated deployment in the
-   Portal, and publish it there. Later releases may use automatic publication.
+4. Protect the environment with required reviewer approval. A stable tag's
+   release run waits for that approval after finalizing the GitHub release and
+   then publishes automatically. A secret-free preflight rejects RC and
+   malformed tags before the protected environment is entered. For a retry,
+   dispatch **Publish Maven Central** with the existing stable tag; leave
+   `automatic` disabled to inspect the validated deployment in the Portal and
+   publish it there.
 
 The workflow removes repository-level `maven-metadata.xml`, adds the required
 Javadoc artifact, regenerates checksums, signs every version artifact, uploads
@@ -295,8 +299,9 @@ The tag workflow:
 For a stable version, it also attaches the deterministic Maven repository
 archive, publishes the GitHub Packages coordinate only after the draft assets
 are complete, detects absent/complete/partial retry states, verifies the remote
-AAR, POM, module metadata, sources JAR, and Javadoc JAR, and finally publishes
-the draft as the latest stable GitHub release.
+AAR, POM, module metadata, sources JAR, and Javadoc JAR, publishes the draft as
+the latest stable GitHub release, and then calls the Maven Central workflow,
+which waits for the owner's `maven-central` environment approval.
 
 For an RC, Gradle still stages the Maven layout locally and a minified consumer
 resolves it as a smoke test. Packaging then switches to standalone-only mode:

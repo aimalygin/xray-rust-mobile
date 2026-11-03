@@ -708,3 +708,16 @@ jobs:
                 ;;
             esac
           fi
+
+  maven-central:
+    needs: [metadata, finalize-release]
+    if: needs.metadata.outputs.release_channel == 'stable'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/publish-maven-central.yml
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      automatic: true
+    # Its publish job reads the maven-central environment's secrets, which a
+    # called workflow receives only through the caller.
+    secrets: inherit
