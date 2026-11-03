@@ -4,27 +4,20 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-SDK **0.8.1** includes the Apple startup-probe ordering fix, updated core
-dependencies and C ABI 1.12. Trojan, Shadowsocks 2022, VMess AEAD, Hysteria2 and
-WireGuard are supported; Shadowsocks AEAD-2017 and legacy VMess remain excluded.
-See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status, and [the changelog](CHANGELOG.md#081---2026-10-18)
-for the release scope. The [core 0.8.1 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.8.1)
-retain the conditional SS2022 WAN PMTU result, remote EOF limitation and
-unconfirmed 5% latency non-regression bound accepted for this release.
-
-The development branch prepares SDK **0.9.0** against the exact core candidate
-[`30928ad`](https://github.com/aimalygin/xray-rust/commit/30928ad51b4a434546cf143f8e385a8746523172)
+SDK **0.9.0** pins core [`v0.9.0`](https://github.com/aimalygin/xray-rust/releases/tag/v0.9.0)
 (C ABI 1.15): SOCKS5 and HTTP/HTTPS link import, classic Shadowsocks AEAD,
 in-flight outbound probe cancellation, Android startup-probe preflight and the
-other changes listed in [the changelog](CHANGELOG.md#090---2026-11-01). The
-[core 0.9.0 release preparation](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md)
-tracks its scope, owner decisions and remaining qualification. Nothing is
-published yet: the commit pin and unprepared artifact locks block publication
-until the core's v0.9 release evidence and annotated `v0.9.0` tag exist. Use
-the installation examples below for published 0.8.1 packages. For source
-development, build the native artifacts locally before resolving the Swift
-package.
+other changes listed in [the changelog](CHANGELOG.md#090---2026-11-01). Trojan,
+Shadowsocks 2022, VMess AEAD, Hysteria2 and WireGuard remain supported; legacy
+VMess remains excluded. See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
+for downloadable artifacts and publication status. The
+[core 0.9.0 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.9.0)
+record what the owner accepted for this release: REALITY fingerprints without
+ML-KEM, SOCKS UDP relay ports on the server, Shadowsocks xchacha20-poly1305 at
+59% of Xray-core throughput, untested Android network/lock transitions, and
+performance limited to the gate metrics without a 0.8.1 non-regression claim.
+For source development, build the native artifacts locally before resolving
+the Swift package.
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -70,7 +63,7 @@ Published 0.8.1 binaries do not provide this new capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.9.0` (unpublished preparation) | exact candidate | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
+| `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
 | `0.7.0` | `v0.7.0` | `67969094b352f948c6b8b9e2ac75402c577cb7f7` | `1.7` |
