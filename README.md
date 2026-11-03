@@ -49,15 +49,15 @@ See the [full results and methodology](https://github.com/aimalygin/xray-rust/bl
 
 This project is unofficial and is not affiliated with XTLS or Xray-core.
 
-## Development HTTP proxy import
+## HTTP proxy import
 
-Build this source snapshot with its pinned core, then check
+SDK 0.9.0 imports HTTP proxy links. Check
 `XrayCore.ffiInfo.supportsProfileImport(.http)` in Swift or
 `XrayCore.ffiInfo().supportsProfileImport(XrayProfileFormat.Http)` in Kotlin.
 Pass either `http://` or `https://` to the matching profile importer. HTTPS
 validates the proxy certificate and name; explicit resolver IPs use TCP DNS.
 See the [accepted URI subset and examples](https://github.com/aimalygin/xray-rust/blob/6a84f8833c7cad09ea3cd4eaa324f022f73851e5/docs/http-profile-import.md).
-Published 0.8.1 binaries do not provide this new capability.
+SDK 0.8.1 and earlier do not provide this capability.
 
 ## Version mapping
 
@@ -90,9 +90,9 @@ aligned with the pinned `xray-rust` tag. A packaging-only Swift or Kotlin
 respin may advance independently without inventing a new Rust core version.
 The complete trust anchor is in [`release/core.env`](release/core.env).
 
-## Development synchronization after 0.8.1
+## Changes since 0.8.1
 
-The development snapshot includes Android's unmetered VPN setting, cached FFI metadata,
+SDK 0.9.0 includes Android's unmetered VPN setting, cached FFI metadata,
 checked native statistics and wrapper cleanup from core #82/#88. SOCKS inbound
 authenticates the TCP control connection; password-protected UDP associations
 require a declared nonzero client port and enforce that source endpoint. UDP
@@ -125,8 +125,9 @@ This helper changes no C ABI, defaults, fd ownership or coroutine dependencies.
 Physical Wi-Fi↔cellular validation with active TCP/UDP remains open in
 [core #89](https://github.com/aimalygin/xray-rust/issues/89); localhost JNI continuity
 checks do not establish Android migration support.
-The SDK's packaging toolchain remains independently pinned. Development CI checks
-source/package integration, not new physical-device or performance acceptance.
+The SDK's packaging toolchain remains independently pinned. CI checks
+source/package integration; the 0.9.0 device and performance evidence is the
+core release record linked above.
 
 ## New APIs in 0.8.1
 
@@ -215,7 +216,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.8.1"
+        exact: "0.9.0"
     ),
 ]
 ~~~
@@ -380,12 +381,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.8.1")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.9.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.8.1).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.9.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
@@ -458,13 +459,13 @@ commands, and user-visible error handling. Call `startForeground` promptly;
 Android permits `systemExempted` only while the app is configured as an active
 VPN, otherwise startup can fail with `ForegroundServiceTypeNotAllowedException`.
 
-## Development SOCKS5 profile import
+## SOCKS5 profile import
 
-The unreleased source snapshot adds Swift `.socks` and Kotlin
+SDK 0.9.0 adds Swift `.socks` and Kotlin
 `XrayProfileFormat.Socks` to `XrayProfileImporter.profile`. Both `socks://` and
 `socks5://` select SOCKS5. Check `supportsProfileImport` before offering this
 format: ABI 1.13, `PROFILE_IMPORT` and `SOCKS_PROFILE_IMPORT` are required.
-Published 0.8.1 binaries do not expose this importer.
+SDK 0.8.1 and earlier do not expose this importer.
 
 Links require a host and explicit port and accept optional percent-encoded or
 Base64 UTF-8 credentials, bracketed IPv6 and a display-name fragment. Empty
