@@ -131,8 +131,12 @@ jobs:
             --head "$branch" \
             --title "chore(release): lock iOS artifact for v$VERSION" \
             --body "Locks the exact SwiftPM ZIP from workflow run $GITHUB_RUN_ID. Merge this before creating tag v$VERSION." 2>&1)"; then
-            echo "::error title=Checksum pull request was not created::Branch $branch was pushed. Enable Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests, or open a pull request from $branch to $GITHUB_REF_NAME manually."
+            # Expected while Actions may not open pull requests: the pushed
+            # branch is the deliverable, so the run stays green.
+            compare="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$GITHUB_REF_NAME...$branch?expand=1"
+            echo "::warning title=Open the checksum pull request manually::Branch $branch was pushed. To finish, open a pull request from $branch to $GITHUB_REF_NAME manually: $compare (or enable Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests)."
             printf '%s\n' "$pr_url" >&2
-            exit 1
+            printf 'Open the checksum pull request: [%s](%s)\n' "$branch" "$compare" >>"$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           printf 'Checksum pull request: %s\n' "$pr_url"
