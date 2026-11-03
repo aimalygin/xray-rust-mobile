@@ -1,16 +1,14 @@
 # Release process
 
-The 0.9.0 preparation requested on 2026-11-01 pins the exact untagged core
-candidate `30928ad51b4a434546cf143f8e385a8746523172` (tree
-`e55a6c3f021643bd507a611c247f2781aaabbb83`) and synchronizes C ABI 1.15. Both
-projects carry version 0.9.0. The
-[core preparation record](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md)
-tracks scope, owner decisions and remaining qualification. Publication needs
-a successful core `v09-release-evidence.yml` run on that exact commit and tree,
-then the annotated `v0.9.0` core tag; switch `release/core.env` to that tag
-without changing the commit or tree. Keep the Apple artifact lock and SwiftPM
-checksum unprepared until then. Earlier release evidence does not qualify this
-candidate.
+The 0.9.0 release requested on 2026-11-01 pins core `v0.9.0`, commit
+`30928ad51b4a434546cf143f8e385a8746523172` (tree
+`e55a6c3f021643bd507a611c247f2781aaabbb83`), and synchronizes C ABI 1.15. The
+exact-candidate archive passed
+[the evidence workflow](https://github.com/aimalygin/xray-rust/actions/runs/41562578452).
+The owner explicitly authorized publication with the documented limitations;
+see the [0.9.0 decision](https://github.com/aimalygin/xray-rust/blob/d20dd13f78a98cdee77b60747d1571d006d91b80/docs/releases/v0.9.0-owner-decisions.json).
+Failures and original identities remain intact. Canonical artifact provenance,
+checksums and published-consumer checks remain required.
 
 The 0.8.1 release requested on 2026-10-18 pins core
 `5b61eee201fac8639cb1dac0349e34af65db90f7` and synchronizes ABI 1.12 plus the

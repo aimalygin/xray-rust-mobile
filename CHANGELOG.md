@@ -4,14 +4,15 @@
 
 ## 0.9.0 - 2026-11-01
 
-Release candidate preparation; artifacts are not yet published.
+SOCKS5 and HTTP/HTTPS link import, classic Shadowsocks AEAD and C ABI 1.15.
+Artifact availability is recorded in
+[GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.9.0).
 
-- Pin the 0.9.0 core candidate `30928ad51b4a434546cf143f8e385a8746523172`
-  with exact tree and Cargo.lock digests. Synchronize canonical Apple/Android
-  sources, the JNI bridge and tests; C ABI is 1.15 and the core reports 0.9.0.
-  The pin stays in candidate commit mode until the annotated `v0.9.0` core tag
-  exists. See the
-  [core 0.9.0 release preparation](https://github.com/aimalygin/xray-rust/blob/30928ad51b4a434546cf143f8e385a8746523172/docs/v090-release.md).
+- Pin the exact 0.9.0 core: annotated tag `v0.9.0`, commit
+  `30928ad51b4a434546cf143f8e385a8746523172`, with exact tree and Cargo.lock
+  digests. Synchronize canonical Apple/Android sources, the JNI bridge and
+  tests; C ABI is 1.15 and the core reports 0.9.0. See the
+  [core 0.9.0 release record](https://github.com/aimalygin/xray-rust/blob/main/docs/v090-release.md).
 - Add Swift and Kotlin `XrayCore.cancelOutboundProbes()` (ABI 1.15,
   `OUTBOUND_PROBE_CANCEL`). It ends only the on-demand probes already running;
   later probes run normally. Startup-probe preflights and the teardown latch
@@ -39,8 +40,13 @@ Release candidate preparation; artifacts are not yet published.
 - Select the core `v09` release-evidence workflow for 0.9 versions. Publication
   requires its successful run on the exact pinned commit and tree; v0.8 runs do
   not qualify.
-- Keep the Apple artifact lock and SwiftPM checksum unprepared. Published
-  installation examples stay on 0.8.1 until the 0.9.0 packages exist.
+- Record the explicit 0.9.0 release decision: performance covers only the 13
+  schema-4 metrics, with no non-regression claim against 0.8.1; Android
+  network/lock transitions remain not tested; HTTP proves UDP refusal. The
+  accepted limitations are REALITY fingerprints without ML-KEM, SOCKS UDP relay
+  ports on the server and Shadowsocks xchacha20-poly1305 at 59% of Xray-core
+  throughput. Failed attempts and original identities remain in the
+  [core evidence](https://github.com/aimalygin/xray-rust/blob/d20dd13f78a98cdee77b60747d1571d006d91b80/docs/releases/v0.9.0-owner-decisions.json).
 
 - Add offline `http://` / `https://` import as Swift `.http` and Kotlin
   `XrayProfileFormat.Http`. Preserve percent-encoded Basic credentials,
