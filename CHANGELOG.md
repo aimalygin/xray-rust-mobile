@@ -50,6 +50,11 @@ until its release evidence and annotated `v0.10.0` tag exist.
   ChromeParrot for Hysteria and XHTTP over HTTP/3, QUIC carriers moving to a
   fresh socket on a Hysteria rebind, and Xray-core v26.11.9 compatibility. See
   the [core changelog](https://github.com/aimalygin/xray-rust/blob/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a/CHANGELOG.md#0100---2026-11-12).
+- `udphop` must now be the last `finalmask.udp` mask, where Xray-core dials
+  it; a configuration with a mask after it is refused when it loads. Imported
+  `hy2://` links with port hopping put the hop after Salamander and no longer
+  write `quicParams.disableChromeParrot`, so they dial with ChromeParrot. The
+  Swift and Kotlin package consumer tests assert the new layout.
 - Require the core's new `XrayTunMtuNativeTest` in the host JNI check, and
   allow the new `nativeSetTunMtu` JNI export.
 - Select the core `v010` release-evidence workflow for 0.10 versions.
