@@ -119,14 +119,35 @@ else:sys.exit(8)
         r=self.run_verifier(profile='v09');self.assertEqual(r.returncode,0,r.stderr)
         self.assertNotEqual(self.run_verifier(profile='v08').returncode,0)
 
+    def test_v010_requires_its_own_workflow(self):
+        (self.root/'release/version.env').write_text('XRAY_MOBILE_VERSION=0.10.0\n')
+        core=self.root/'release/core.env';core.write_text(core.read_text().replace('v0.7.0-rc.1','v0.10.0'))
+        r=self.run_verifier(profile='v010');self.assertEqual(r.returncode,0,r.stderr)
+        self.assertIn('verified core v010 release evidence run',r.stdout)
+        # A v0.9 run, or a v0.1 one that "0.10" starts with, does not qualify.
+        for profile in ['v09','v01']:
+            with self.subTest(profile=profile):self.assertNotEqual(self.run_verifier(profile=profile).returncode,0)
+
     def test_profile_selector_rejects_unknown_minor_versions(self):
         selector=ROOT/'scripts/release-evidence-profile.sh'
-        for version,profile in [('0.8.1','v08'),('0.9.0','v09'),('v0.9.0-rc.1','v09')]:
+        for version,profile in [('0.8.1','v08'),('0.9.0','v09'),('v0.9.0-rc.1','v09'),('v0.6.1','v06')]:
             r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
             self.assertEqual((r.returncode,r.stdout.strip()),(0,profile),version)
-        for version in ['0.10.0','1.0.0','0.9','0.9.0-rc.0']:
+        for version in ['0.11.0','1.0.0','0.9','0.9.0-rc.0']:
             r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
             self.assertNotEqual(r.returncode,0,version)
+
+    def test_two_digit_minor_selects_v010_and_nothing_near_it_does(self):
+        selector=ROOT/'scripts/release-evidence-profile.sh'
+        for version in ['0.10.0','v0.10.0','v0.10.0-rc.1','0.10.12']:
+            r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
+            self.assertEqual((r.returncode,r.stdout.strip()),(0,'v010'),version)
+        # "0.1" is a prefix of "0.10": neither it nor a longer minor may match.
+        for version in ['0.1.0','v0.1.10','0.100.0','0.101.0','0.10','0.1','0.10.','0.10.01',
+                        'v0.10.0-rc.0','0.11.0','v1.0.0','1.10.0','00.10.0','0.10.0 ','0.10.0/../x']:
+            r=subprocess.run(['bash',str(selector),version],capture_output=True,text=True)
+            self.assertNotEqual(r.returncode,0,version)
+            self.assertEqual(r.stdout,'',version)
 
 
 if __name__=='__main__':unittest.main()

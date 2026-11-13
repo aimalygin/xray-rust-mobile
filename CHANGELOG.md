@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+## 0.10.0 - 2026-11-12
+
+Release candidate preparation: VLESS link import, a host-chosen TUN MTU and
+C ABI 1.17. Nothing is published yet; the core candidate is pinned by commit
+until its release evidence and annotated `v0.10.0` tag exist.
+
+- Pin the exact 0.10.0 core candidate in commit mode: commit
+  `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a`, tree
+  `e4d3df6d5cf7a0d3e0ee5a15d807d8a683c24bf8`, with its Cargo.lock and FFI
+  header digests. Synchronize canonical Apple/Android sources, the JNI bridge,
+  tests and fixtures; C ABI is 1.17 and the core reports 0.10.0. See the
+  [core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a/docs/v0100-release.md).
+- Add `vless://` import through the core importer as Swift `.vless` and Kotlin
+  `XrayProfileFormat.Vless` (ABI 1.17, `VLESS_PROFILE_IMPORT`). The existing
+  `XrayVlessURLImporter`/`XrayVlessUrlImporter` parsers stay separate and now
+  also accept TLS over raw, WebSocket, HTTPUpgrade and gRPC, and Remnawave's
+  `fm` (finalmask) parameter; they reject a REALITY `spiderX` that is not an
+  absolute path, as Xray-core does.
+- Add a host-chosen TUN MTU in 1280–9000 (ABI 1.16, `TUN_MTU`; default 1500).
+  Swift adds `XrayTunMtu`, `XrayCore.supportedTunMtu(_:)`, the `tunMtu` core
+  option and the `XrayPacketTunnelProvider.tunMtu()` hook. Kotlin adds
+  `XrayCore.supportedTunMtu`, the `tunMtu` argument of `XrayCore.create` and
+  `XrayVpnService.startXrayTunnel`, `XrayTunInterface.MIN_MTU`/`MAX_MTU` and the
+  `mtu` argument of `applyXrayTunInterface`. The interface and the core must
+  use the same value; packet polls size to it. `XrayTunStats` adds
+  `udpOversizeDatagrams`, and Kotlin also reports `tunFdReadLoopExits` and
+  `tunFdWriteLoopExits`.
+- Apple: the packet tunnel provider cancels a tunnel whose core read or write
+  loop gave up on the utun descriptor, with the new
+  `XrayPacketTunnelProviderError.tunFileDescriptorStopped` (code 9). A start
+  that waits for an earlier DNS bootstrap lookup now runs once it returns,
+  within its own deadline, instead of failing with `dnsBootstrapTimedOut`.
+- Android `XrayVpnService`: a start made while a session stops begins once the
+  stop has finished instead of being dropped; a start with other arguments
+  replaces one in flight, and the replaced attempt reports the new
+  `onXrayTunnelStartCancelled()`. `stopXrayTunnel` waits for an
+  `onXrayTunnelStarted` already running, so that callback must not wait for a
+  thread that is stopping the tunnel. A descriptor whose core loop stopped
+  reports `onXrayTunnelFatalError`. Opt-in carrier rebind on network changes
+  (`networkChangeRebindEnabled()`, `selectUnderlyingNetwork`,
+  `onXrayNetworkRebind`, `onXrayNetworkChangeError`) needs
+  `ACCESS_NETWORK_STATE` in the host manifest. The JNI bridge keeps a native
+  worker thread attached as a daemon until it exits.
+- Include the core's mKCP and MASQUE carriers, the `xdns`, `xicmp`, `realm`,
+  `sudoku`, `xmc` and `header-custom` masks, XDRIVE, the VLESS reverse bridge,
+  ChromeParrot for Hysteria and XHTTP over HTTP/3, QUIC carriers moving to a
+  fresh socket on a Hysteria rebind, and Xray-core v26.11.9 compatibility. See
+  the [core changelog](https://github.com/aimalygin/xray-rust/blob/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a/CHANGELOG.md#0100---2026-11-12).
+- Require the core's new `XrayTunMtuNativeTest` in the host JNI check, and
+  allow the new `nativeSetTunMtu` JNI export.
+- Select the core `v010` release-evidence workflow for 0.10 versions.
+  Publication requires its successful run on the exact pinned commit and tree;
+  v0.9 runs do not qualify, and the two-digit minor cannot match 0.1.
+
 ## 0.9.0 - 2026-11-01
 
 SOCKS5 and HTTP/HTTPS link import, classic Shadowsocks AEAD and C ABI 1.15.

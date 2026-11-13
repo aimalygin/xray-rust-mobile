@@ -242,6 +242,7 @@ public struct XrayRealityFingerprintMode: RawRepresentable,
     public static let hellochrome120 = Self("hellochrome_120")
     public static let hellochrome131 = Self("hellochrome_131")
     public static let hellochrome133 = Self("hellochrome_133")
+    public static let hellochrome155 = Self("hellochrome_155")
     public static let helloios13 = Self("helloios_13")
     public static let helloios14 = Self("helloios_14")
     public static let helloedge106 = Self("helloedge_106")
@@ -291,6 +292,7 @@ public struct XrayRealityFingerprintMode: RawRepresentable,
         .hellochrome120,
         .hellochrome131,
         .hellochrome133,
+        .hellochrome155,
         .helloios13,
         .helloios14,
         .helloedge106,
@@ -1305,6 +1307,7 @@ public struct XrayClientRuntimeStats: Codable, Equatable, Sendable {
     public var tunFdReadLoopExits: UInt64
     public var tunFdWriteLoopExits: UInt64
     public var tunFdTransientIoErrors: UInt64
+    public var udpOversizeDatagrams: UInt64
 
     private enum CodingKeys: String, CodingKey {
         case inboundPackets
@@ -1352,6 +1355,7 @@ public struct XrayClientRuntimeStats: Codable, Equatable, Sendable {
         case tunFdReadLoopExits
         case tunFdWriteLoopExits
         case tunFdTransientIoErrors
+        case udpOversizeDatagrams
     }
 
     public init(
@@ -1399,7 +1403,8 @@ public struct XrayClientRuntimeStats: Codable, Equatable, Sendable {
         tunFdWriteBatchMaxPackets: UInt64 = 0,
         tunFdReadLoopExits: UInt64 = 0,
         tunFdWriteLoopExits: UInt64 = 0,
-        tunFdTransientIoErrors: UInt64 = 0
+        tunFdTransientIoErrors: UInt64 = 0,
+        udpOversizeDatagrams: UInt64 = 0
     ) {
         self.inboundPackets = inboundPackets
         self.outboundPackets = outboundPackets
@@ -1446,6 +1451,7 @@ public struct XrayClientRuntimeStats: Codable, Equatable, Sendable {
         self.tunFdReadLoopExits = tunFdReadLoopExits
         self.tunFdWriteLoopExits = tunFdWriteLoopExits
         self.tunFdTransientIoErrors = tunFdTransientIoErrors
+        self.udpOversizeDatagrams = udpOversizeDatagrams
     }
 
     public init(from decoder: Decoder) throws {
@@ -1596,6 +1602,10 @@ public struct XrayClientRuntimeStats: Codable, Equatable, Sendable {
         tunFdTransientIoErrors = try container.decodeIfPresent(
             UInt64.self,
             forKey: .tunFdTransientIoErrors
+        ) ?? 0
+        udpOversizeDatagrams = try container.decodeIfPresent(
+            UInt64.self,
+            forKey: .udpOversizeDatagrams
         ) ?? 0
     }
 }
