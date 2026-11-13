@@ -19,6 +19,16 @@ performance limited to the gate metrics without a 0.8.1 non-regression claim.
 For source development, build the native artifacts locally before resolving
 the Swift package.
 
+The `main` branch prepares SDK **0.10.0** against the exact core candidate
+[`9455450`](https://github.com/aimalygin/xray-rust/commit/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a)
+(C ABI 1.17): `vless://` import through the core, a host-chosen TUN MTU and the
+other changes listed in [the changelog](CHANGELOG.md#0100---2026-11-12). The
+[core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a/docs/v0100-release.md)
+tracks its scope and qualification. Nothing is published yet: the commit pin
+and unprepared artifact locks block publication until the core's v0.10 release
+evidence and annotated `v0.10.0` tag exist. Use the installation examples below
+for the published 0.9.0 packages.
+
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
@@ -63,6 +73,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.10.0` (unpublished preparation) | exact candidate | `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |

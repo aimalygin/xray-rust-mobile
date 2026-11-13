@@ -74,12 +74,15 @@ final class SdkConsumerTests: XCTestCase {
         let stream = try XCTUnwrap(proxy["streamSettings"] as? [String: Any])
         let mask = try XCTUnwrap(stream["finalmask"] as? [String: Any])
         let masks = try XCTUnwrap(mask["udp"] as? [[String: Any]])
-        XCTAssertEqual(masks[0]["type"] as? String, "udphop")
-        XCTAssertEqual(masks[1]["type"] as? String, "salamander")
-        let hop = try XCTUnwrap(masks[0]["settings"] as? [String: Any])
+        // Salamander first: Xray-core dials only an outermost, last udphop.
+        XCTAssertEqual(masks.count, 2)
+        XCTAssertEqual(masks[0]["type"] as? String, "salamander")
+        XCTAssertEqual(masks[1]["type"] as? String, "udphop")
+        let hop = try XCTUnwrap(masks[1]["settings"] as? [String: Any])
         XCTAssertEqual(hop["mode"] as? String, "intervalLocal,intervalRemote")
         XCTAssertEqual(hop["remotePorts"] as? String, "443,8443-8444")
-        XCTAssertEqual((mask["quicParams"] as? [String: Any])?["disableChromeParrot"] as? Bool, true)
+        // No quicParams of its own: the profile dials with ChromeParrot.
+        XCTAssertNil(mask["quicParams"])
         try XrayMobileDNSPreflight.validate(profile.configJSON)
         _ = try XrayCore(configJSON: profile.configJSON)
     }

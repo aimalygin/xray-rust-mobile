@@ -57,12 +57,15 @@ class SdkTransportOptionsNativeTest {
         val mask = JSONObject(profile.configJson).getJSONArray("outbounds").getJSONObject(0)
             .getJSONObject("streamSettings").getJSONObject("finalmask")
         val masks = mask.getJSONArray("udp")
-        assertEquals("udphop", masks.getJSONObject(0).getString("type"))
-        assertEquals("salamander", masks.getJSONObject(1).getString("type"))
-        val hop = masks.getJSONObject(0).getJSONObject("settings")
+        // Salamander first: Xray-core dials only an outermost, last udphop.
+        assertEquals(2, masks.length())
+        assertEquals("salamander", masks.getJSONObject(0).getString("type"))
+        assertEquals("udphop", masks.getJSONObject(1).getString("type"))
+        val hop = masks.getJSONObject(1).getJSONObject("settings")
         assertEquals("intervalLocal,intervalRemote", hop.getString("mode"))
         assertEquals("443,8443-8444", hop.getString("remotePorts"))
-        assertTrue(mask.getJSONObject("quicParams").getBoolean("disableChromeParrot"))
+        // No quicParams of its own: the profile dials with ChromeParrot.
+        assertFalse(mask.has("quicParams"))
         XrayCore.create(profile.configJson).use { }
     }
 

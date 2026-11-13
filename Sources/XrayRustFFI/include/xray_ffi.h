@@ -99,6 +99,7 @@ typedef struct XrayTunStats {
   uint64_t tun_fd_read_loop_exits;
   uint64_t tun_fd_write_loop_exits;
   uint64_t tun_fd_transient_io_errors;
+  uint64_t udp_oversize_datagrams;
 } XrayTunStats;
 
 typedef enum XrayTunFdPacketFormat {
@@ -244,7 +245,9 @@ typedef enum XrayFfiCapability {
   XRAY_FFI_CAPABILITY_STARTUP_PROBE_PREFLIGHT = 1 << 25,
   XRAY_FFI_CAPABILITY_SOCKS_PROFILE_IMPORT = 1 << 26,
   XRAY_FFI_CAPABILITY_HTTP_PROFILE_IMPORT = 1 << 27,
-  XRAY_FFI_CAPABILITY_OUTBOUND_PROBE_CANCEL = 1 << 28
+  XRAY_FFI_CAPABILITY_OUTBOUND_PROBE_CANCEL = 1 << 28,
+  XRAY_FFI_CAPABILITY_TUN_MTU = 1 << 29,
+  XRAY_FFI_CAPABILITY_VLESS_PROFILE_IMPORT = 1 << 30
 } XrayFfiCapability;
 
 /* ABI 1.9. Outcome written by xray_core_probe_outbound_url through an int32_t.
@@ -264,10 +267,11 @@ uint32_t xray_ffi_version_minor(void);
 uint64_t xray_ffi_capabilities(void);
 
 /* ABI 1.5, PROFILE_IMPORT plus the selected outbound capability.
+ * VLESS links require ABI 1.17, PROFILE_IMPORT and VLESS_PROFILE_IMPORT.
  * HTTP/HTTPS links require ABI 1.14, PROFILE_IMPORT and HTTP_PROFILE_IMPORT.
  * SOCKS links require ABI 1.13, PROFILE_IMPORT and SOCKS_PROFILE_IMPORT.
  * Offline, thread-safe and handle-free. UTF-8 request (<=256 KiB):
- * {"format":"http"|"socks"|"trojan"|"shadowsocks2022"|"vmess"|"hysteria2"|"wireguard",
+ * {"format":"vless"|"http"|"socks"|"trojan"|"shadowsocks2022"|"vmess"|"hysteria2"|"wireguard",
  *  "text":"...","name":"...",
  *  "dnsServers":["IP",...]}; name and dnsServers are optional.
  * Source text <=64 KiB. No network, file access, commands or VPN startup.
@@ -291,6 +295,13 @@ XrayCoreHandle *xray_core_new(XrayError **error);
 XrayStatus xray_core_set_hysteria_stream_limits(
     XrayCoreHandle *handle, uint32_t max_tcp_streams,
     uint32_t max_udp_sessions, XrayError **error);
+/* ABI 1.16, TUN_MTU. MTU of the host's TUN interface, 1280..=9000, default
+ * 1500 on every profile. Set before config load and give the interface the
+ * same value; without TUN_MTU keep the interface at 1500. Invalid calls change
+ * nothing. A tun inbound's JSON settings.mtu is not used.
+ * Lifecycle call: do not race any other handle call. */
+XrayStatus xray_core_set_tun_mtu(
+    XrayCoreHandle *handle, uint32_t mtu, XrayError **error);
 /* Searches dir first, then the process default geodata directories. */
 XrayStatus xray_core_set_geodata_search_dir(
     XrayCoreHandle *handle,
@@ -385,7 +396,10 @@ XrayStatus xray_core_rebind_wireguard(
  * change. Retains current endpoints, QUIC connection and inner flows; no DNS
  * refresh. accepted is required and counts accepted requests, not completed
  * path validation. Bind/protection failure closes the affected client.
- * Concurrent with data-path calls, but not lifecycle/free. Lazy clients stay lazy. */
+ * Concurrent with data-path calls, but not lifecycle/free. Lazy clients stay lazy.
+ * The same call moves every other live QUIC carrier (XHTTP, MASQUE and XDRIVE
+ * storages over HTTP/3) to a fresh protected socket and counts them too; one
+ * that fails to bind keeps its current socket. */
 XrayStatus xray_core_rebind_hysteria(
     XrayCoreHandle *handle,
     uint64_t *accepted,

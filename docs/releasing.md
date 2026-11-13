@@ -1,5 +1,18 @@
 # Release process
 
+The 0.10.0 preparation requested on 2026-11-11 pins the exact untagged core
+candidate `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a` (tree
+`e4d3df6d5cf7a0d3e0ee5a15d807d8a683c24bf8`) and synchronizes C ABI 1.17. Both
+projects carry version 0.10.0. The
+[core preparation record](https://github.com/aimalygin/xray-rust/blob/9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a/docs/v0100-release.md)
+tracks scope and remaining qualification. Publication needs a successful core
+`v010-release-evidence.yml` run on that exact commit and tree, then the
+annotated `v0.10.0` core tag; switch `release/core.env` to that tag without
+changing the commit or tree. If the core candidate becomes a new commit, only
+the pin and its digests move here, followed by a fresh `sync-upstream.sh
+--force`. Keep the Apple artifact lock and SwiftPM checksum unprepared until
+then. Earlier release evidence does not qualify this candidate.
+
 The 0.9.0 release requested on 2026-11-01 pins core `v0.9.0`, commit
 `30928ad51b4a434546cf143f8e385a8746523172` (tree
 `e55a6c3f021643bd507a611c247f2781aaabbb83`), and synchronizes C ABI 1.15. The
