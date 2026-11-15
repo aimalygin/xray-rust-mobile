@@ -4,16 +4,16 @@
 
 ## 0.10.0 - 2026-11-15
 
-Release candidate preparation: VLESS link import, a host-chosen TUN MTU and
-C ABI 1.17. Nothing is published yet; the core candidate is pinned by commit
-until its release evidence and annotated `v0.10.0` tag exist.
+VLESS link import, a host-chosen TUN MTU and C ABI 1.17. Artifact
+availability is recorded in
+[GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.10.0).
 
-- Pin the exact 0.10.0 core candidate in commit mode: commit
+- Pin the exact 0.10.0 core: annotated tag `v0.10.0`, commit
   `7eb199bba2562659fdbf0bcde9820e016dd8530c`, tree
   `b637ff77211f6dc1aa865779d42b0325a7c7cc86`, with its Cargo.lock and FFI
   header digests. Synchronize canonical Apple/Android sources, the JNI bridge,
   tests and fixtures; C ABI is 1.17 and the core reports 0.10.0. See the
-  [core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/docs/v0100-release.md).
+  [core 0.10.0 release record](https://github.com/aimalygin/xray-rust/blob/b9eebe06c5999a5033db16c95ee1cc9481a927a0/docs/v0100-release.md).
 - Add `vless://` import through the core importer as Swift `.vless` and Kotlin
   `XrayProfileFormat.Vless` (ABI 1.17, `VLESS_PROFILE_IMPORT`). The existing
   `XrayVlessURLImporter`/`XrayVlessUrlImporter` parsers stay separate and now
@@ -82,6 +82,20 @@ until its release evidence and annotated `v0.10.0` tag exist.
 - Select the core `v010` release-evidence workflow for 0.10 versions.
   Publication requires its successful run on the exact pinned commit and tree;
   v0.9 runs do not qualify, and the two-digit minor cannot match 0.1.
+- Record the explicit 0.10.0 release decision of 2026-11-15. Not tested:
+  Android Wi-Fi/cellular, the XHTTP H3 network change and lock/wake (the
+  Android test device has no cellular data; the iPhone ran all three). The
+  iPhone's LAN runs were made on the third candidate's build and carried over;
+  its public-host runs and every Android run were made on this one. The
+  accepted limitations are peak memory above 110% of 0.9.0's for ten protocols
+  (up to 117.7%), at most 16 TCP flows at once in a MASQUE or WireGuard tunnel,
+  MASQUE UDP datagrams of at most 1252 bytes over IPv4 and 1232 over IPv6,
+  MASQUE one-flow download at about 12% of Xray-core's throughput, an mKCP
+  server learning of a cancelled flow about six seconds late, a sometimes slow
+  first exchange after an iOS tunnel start, and an Apple RSS growth bound set
+  after MASQUE's measurement was seen. Failed attempts and original identities
+  remain in the
+  [core evidence](https://github.com/aimalygin/xray-rust/blob/b9eebe06c5999a5033db16c95ee1cc9481a927a0/docs/releases/v0.10.0-owner-decisions.json).
 
 ## 0.9.0 - 2026-11-01
 

@@ -1,27 +1,26 @@
 # Release process
 
-The 0.10.0 preparation requested on 2026-11-11 pins the exact untagged core
-candidate `7eb199bba2562659fdbf0bcde9820e016dd8530c` (tree
-`b637ff77211f6dc1aa865779d42b0325a7c7cc86`) and synchronizes C ABI 1.17. Both
-projects carry version 0.10.0. The
-[core preparation record](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/docs/v0100-release.md)
-tracks scope and remaining qualification. Publication needs a successful core
-`v010-release-evidence.yml` run on that exact commit and tree, then the
-annotated `v0.10.0` core tag; switch `release/core.env` to that tag without
-changing the commit or tree. If the core candidate becomes a new commit, only
-the pin and its digests move here, followed by a fresh `sync-upstream.sh
---force`. Keep the Apple artifact lock and SwiftPM checksum unprepared until
-then. Earlier release evidence does not qualify this candidate. The first
-candidate, `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a` (pinned by #49), is
-superseded: its adapters did not start profiles with a simplified-form VLESS
-outbound. The second, `4a61b057e97042396ec1a03fa8a0699919c42d64` (pinned by
-#50), is superseded too: its `xicmp` mask did not work inside an Apple Network
-Extension. So is the third, `706a766cb68c0a2d571d0c0c3532d7cd508cc34c` (pinned
-by #51): a MASQUE tunnel lost a DNS answer when an iPhone returned from
-cellular to Wi-Fi. The core's v0.10 evidence profile no longer asks for the
-Android network change (`wifi-cellular-wifi`, `xhttp-h3-network-change`), on
-the owner's decision of 2026-11-15; release known limitations must say it was
-not tested.
+The 0.10.0 release requested on 2026-11-11 pins core `v0.10.0` (tag object
+`f8155747923cf2a35f0ef231179f328d157a4298`), commit
+`7eb199bba2562659fdbf0bcde9820e016dd8530c` (tree
+`b637ff77211f6dc1aa865779d42b0325a7c7cc86`), and synchronizes C ABI 1.17. The
+candidate passed [full CI](https://github.com/aimalygin/xray-rust/actions/runs/43748376213),
+and its exact-candidate archive (SHA-256
+`5e15a1341d2e89a4b49db2e490883eb328283db43ec21c03f20a6ce31ffdd459`) passed
+[the evidence workflow](https://github.com/aimalygin/xray-rust/actions/runs/43768546896).
+The owner explicitly authorized publication with the documented limitations on
+2026-11-15; see the
+[0.10.0 decision](https://github.com/aimalygin/xray-rust/blob/b9eebe06c5999a5033db16c95ee1cc9481a927a0/docs/releases/v0.10.0-owner-decisions.json).
+The Android network change and lock/wake are not tested, and the iPhone's LAN
+runs count from the third candidate's build. Three earlier candidates were
+superseded: `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a` (#49), whose adapters
+did not start a simplified-form VLESS outbound;
+`4a61b057e97042396ec1a03fa8a0699919c42d64` (#50), whose `xicmp` mask did not
+work inside an Apple Network Extension; and
+`706a766cb68c0a2d571d0c0c3532d7cd508cc34c` (#51), whose MASQUE tunnel lost a
+DNS answer when an iPhone returned from cellular to Wi-Fi. Failures and
+original identities remain intact. Canonical artifact provenance, checksums
+and published-consumer checks remain required.
 
 The 0.9.0 release requested on 2026-11-01 pins core `v0.9.0`, commit
 `30928ad51b4a434546cf143f8e385a8746523172` (tree

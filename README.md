@@ -4,30 +4,23 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-SDK **0.9.0** pins core [`v0.9.0`](https://github.com/aimalygin/xray-rust/releases/tag/v0.9.0)
-(C ABI 1.15): SOCKS5 and HTTP/HTTPS link import, classic Shadowsocks AEAD,
-in-flight outbound probe cancellation, Android startup-probe preflight and the
-other changes listed in [the changelog](CHANGELOG.md#090---2026-11-01). Trojan,
-Shadowsocks 2022, VMess AEAD, Hysteria2 and WireGuard remain supported; legacy
-VMess remains excluded. See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status. The
-[core 0.9.0 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.9.0)
-record what the owner accepted for this release: REALITY fingerprints without
-ML-KEM, SOCKS UDP relay ports on the server, Shadowsocks xchacha20-poly1305 at
-59% of Xray-core throughput, untested Android network/lock transitions, and
-performance limited to the gate metrics without a 0.8.1 non-regression claim.
-For source development, build the native artifacts locally before resolving
-the Swift package.
-
-The `main` branch prepares SDK **0.10.0** against the exact core candidate
-[`7eb199b`](https://github.com/aimalygin/xray-rust/commit/7eb199bba2562659fdbf0bcde9820e016dd8530c)
-(C ABI 1.17): `vless://` import through the core, a host-chosen TUN MTU and the
-other changes listed in [the changelog](CHANGELOG.md#0100---2026-11-15). The
-[core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/docs/v0100-release.md)
-tracks its scope and qualification. Nothing is published yet: the commit pin
-and unprepared artifact locks block publication until the core's v0.10 release
-evidence and annotated `v0.10.0` tag exist. Use the installation examples below
-for the published 0.9.0 packages.
+SDK **0.10.0** pins core [`v0.10.0`](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.0)
+(C ABI 1.17): `vless://` import through the core, a host-chosen TUN MTU, the
+core's mKCP and MASQUE carriers and new masks, and the other changes listed in
+[the changelog](CHANGELOG.md#0100---2026-11-15). The protocols 0.9.0 shipped
+remain supported; legacy VMess remains excluded. See
+[GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
+for downloadable artifacts and publication status; until the 0.10.0 packages
+are published, the installation examples below use 0.9.0. The
+[core 0.10.0 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.0)
+record what the owner accepted for this release: peak memory above 110% of
+0.9.0's for ten protocols, at most 16 TCP flows per MASQUE or WireGuard tunnel,
+MASQUE's UDP datagram size limit and slow one-flow download, an mKCP server
+learning late of a cancelled flow, a sometimes slow first exchange after an iOS
+tunnel start, an Apple RSS bound set after measurement, untested Android
+network/lock transitions, and iPhone LAN runs carried over from the third
+candidate. For source development, build the native artifacts locally before
+resolving the Swift package.
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -73,7 +66,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.10.0` (unpublished preparation) | exact candidate | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
+| `0.10.0` | `v0.10.0` | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
