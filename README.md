@@ -20,10 +20,10 @@ For source development, build the native artifacts locally before resolving
 the Swift package.
 
 The `main` branch prepares SDK **0.10.0** against the exact core candidate
-[`4a61b05`](https://github.com/aimalygin/xray-rust/commit/4a61b057e97042396ec1a03fa8a0699919c42d64)
+[`706a766`](https://github.com/aimalygin/xray-rust/commit/706a766cb68c0a2d571d0c0c3532d7cd508cc34c)
 (C ABI 1.17): `vless://` import through the core, a host-chosen TUN MTU and the
-other changes listed in [the changelog](CHANGELOG.md#0100---2026-11-13). The
-[core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/4a61b057e97042396ec1a03fa8a0699919c42d64/docs/v0100-release.md)
+other changes listed in [the changelog](CHANGELOG.md#0100---2026-11-14). The
+[core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/706a766cb68c0a2d571d0c0c3532d7cd508cc34c/docs/v0100-release.md)
 tracks its scope and qualification. Nothing is published yet: the commit pin
 and unprepared artifact locks block publication until the core's v0.10 release
 evidence and annotated `v0.10.0` tag exist. Use the installation examples below
@@ -73,7 +73,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.10.0` (unpublished preparation) | exact candidate | `4a61b057e97042396ec1a03fa8a0699919c42d64` | `1.17` |
+| `0.10.0` (unpublished preparation) | exact candidate | `706a766cb68c0a2d571d0c0c3532d7cd508cc34c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
 | `0.8.0` | `v0.8.0` | `fcce4be2771c1fb3f11e9503741d39a4d8df314e` | `1.11` |
