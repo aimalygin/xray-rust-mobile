@@ -2,18 +2,18 @@
 
 ## Unreleased
 
-## 0.10.0 - 2026-11-14
+## 0.10.0 - 2026-11-15
 
 Release candidate preparation: VLESS link import, a host-chosen TUN MTU and
 C ABI 1.17. Nothing is published yet; the core candidate is pinned by commit
 until its release evidence and annotated `v0.10.0` tag exist.
 
 - Pin the exact 0.10.0 core candidate in commit mode: commit
-  `706a766cb68c0a2d571d0c0c3532d7cd508cc34c`, tree
-  `c9a8f38535c0aedbcfb8865fc74224afc008dc4c`, with its Cargo.lock and FFI
+  `7eb199bba2562659fdbf0bcde9820e016dd8530c`, tree
+  `b637ff77211f6dc1aa865779d42b0325a7c7cc86`, with its Cargo.lock and FFI
   header digests. Synchronize canonical Apple/Android sources, the JNI bridge,
   tests and fixtures; C ABI is 1.17 and the core reports 0.10.0. See the
-  [core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/706a766cb68c0a2d571d0c0c3532d7cd508cc34c/docs/v0100-release.md).
+  [core 0.10.0 preparation record](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/docs/v0100-release.md).
 - Add `vless://` import through the core importer as Swift `.vless` and Kotlin
   `XrayProfileFormat.Vless` (ABI 1.17, `VLESS_PROFILE_IMPORT`). The existing
   `XrayVlessURLImporter`/`XrayVlessUrlImporter` parsers stay separate and now
@@ -60,11 +60,18 @@ until its release evidence and annotated `v0.10.0` tag exist.
   each also follows the interface the system scopes the process's UDP sockets
   to, so it moves between Wi-Fi and cellular. Android behaves as before;
   nothing for a host to change.
+- A QUIC connection that moves to a fresh socket on a network change keeps
+  reading the socket it left for three seconds (MASQUE, Hysteria, and XHTTP
+  and XDRIVE over HTTP/3); the third 0.10.0 candidate dropped what was still
+  on its way there, and an iPhone returning to Wi-Fi through a MASQUE tunnel
+  lost a DNS answer. The core's resolver now sends a query again every second
+  over a carrier that can lose a datagram, and a lookup past its operation cap
+  waits for a place instead of failing at once. Nothing for a host to change.
 - Include the core's mKCP and MASQUE carriers, the `xdns`, `xicmp`, `realm`,
   `sudoku`, `xmc` and `header-custom` masks, XDRIVE, the VLESS reverse bridge,
   ChromeParrot for Hysteria and XHTTP over HTTP/3, QUIC carriers moving to a
   fresh socket on a Hysteria rebind, and Xray-core v26.11.9 compatibility. See
-  the [core changelog](https://github.com/aimalygin/xray-rust/blob/706a766cb68c0a2d571d0c0c3532d7cd508cc34c/CHANGELOG.md#0100---2026-11-14).
+  the [core changelog](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/CHANGELOG.md#0100---2026-11-15).
 - `udphop` must now be the last `finalmask.udp` mask, where Xray-core dials
   it; a configuration with a mask after it is refused when it loads. Imported
   `hy2://` links with port hopping put the hop after Salamander and no longer
