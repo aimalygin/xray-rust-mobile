@@ -1,10 +1,10 @@
 # Release process
 
 The 0.10.0 preparation requested on 2026-11-11 pins the exact untagged core
-candidate `706a766cb68c0a2d571d0c0c3532d7cd508cc34c` (tree
-`c9a8f38535c0aedbcfb8865fc74224afc008dc4c`) and synchronizes C ABI 1.17. Both
+candidate `7eb199bba2562659fdbf0bcde9820e016dd8530c` (tree
+`b637ff77211f6dc1aa865779d42b0325a7c7cc86`) and synchronizes C ABI 1.17. Both
 projects carry version 0.10.0. The
-[core preparation record](https://github.com/aimalygin/xray-rust/blob/706a766cb68c0a2d571d0c0c3532d7cd508cc34c/docs/v0100-release.md)
+[core preparation record](https://github.com/aimalygin/xray-rust/blob/7eb199bba2562659fdbf0bcde9820e016dd8530c/docs/v0100-release.md)
 tracks scope and remaining qualification. Publication needs a successful core
 `v010-release-evidence.yml` run on that exact commit and tree, then the
 annotated `v0.10.0` core tag; switch `release/core.env` to that tag without
@@ -16,7 +16,12 @@ candidate, `9455450d83583ab1f2f7ffec8dc0a2d6dc8b571a` (pinned by #49), is
 superseded: its adapters did not start profiles with a simplified-form VLESS
 outbound. The second, `4a61b057e97042396ec1a03fa8a0699919c42d64` (pinned by
 #50), is superseded too: its `xicmp` mask did not work inside an Apple Network
-Extension.
+Extension. So is the third, `706a766cb68c0a2d571d0c0c3532d7cd508cc34c` (pinned
+by #51): a MASQUE tunnel lost a DNS answer when an iPhone returned from
+cellular to Wi-Fi. The core's v0.10 evidence profile no longer asks for the
+Android network change (`wifi-cellular-wifi`, `xhttp-h3-network-change`), on
+the owner's decision of 2026-11-15; release known limitations must say it was
+not tested.
 
 The 0.9.0 release requested on 2026-11-01 pins core `v0.9.0`, commit
 `30928ad51b4a434546cf143f8e385a8746523172` (tree
