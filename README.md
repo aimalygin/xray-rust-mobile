@@ -10,8 +10,7 @@ core's mKCP and MASQUE carriers and new masks, and the other changes listed in
 [the changelog](CHANGELOG.md#0100---2026-11-15). The protocols 0.9.0 shipped
 remain supported; legacy VMess remains excluded. See
 [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status; until the 0.10.0 packages
-are published, the installation examples below use 0.9.0. The
+for downloadable artifacts and publication status. The
 [core 0.10.0 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.0)
 record what the owner accepted for this release: peak memory above 110% of
 0.9.0's for ten protocols, at most 16 TCP flows per MASQUE or WireGuard tunnel,
@@ -131,7 +130,7 @@ Physical Wi-Fi↔cellular validation with active TCP/UDP remains open in
 checks do not establish Android migration support.
 The SDK's packaging toolchain remains independently pinned. CI checks
 source/package integration; the 0.9.0 device and performance evidence is the
-core release record linked above.
+[core 0.9.0 release record](https://github.com/aimalygin/xray-rust/releases/tag/v0.9.0).
 
 ## New APIs in 0.8.1
 
@@ -220,7 +219,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.9.0"
+        exact: "0.10.0"
     ),
 ]
 ~~~
@@ -385,12 +384,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.9.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.10.0")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.9.0).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.10.0).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
