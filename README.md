@@ -21,6 +21,16 @@ network/lock transitions, and iPhone LAN runs carried over from the third
 candidate. For source development, build the native artifacts locally before
 resolving the Swift package.
 
+The `main` branch prepares SDK **0.10.1** against the exact core candidate
+[`3cef7c4`](https://github.com/aimalygin/xray-rust/commit/3cef7c42c2fd296afd27ab0b6435c632842e1a26)
+(C ABI 1.17, unchanged): the core's 0.10.1 fixes listed in
+[the changelog](CHANGELOG.md#0101---2026-11-16), with no SDK API change. The
+[core 0.10.1 preparation record](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/docs/v0101-release.md)
+tracks its scope and qualification. Nothing is published yet: the commit pin
+and unprepared artifact locks block publication until the core's v0.10 release
+evidence and annotated `v0.10.1` tag exist. Use the installation examples below
+for the published 0.10.0 packages.
+
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
@@ -65,6 +75,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| `0.10.1` (unpublished preparation) | exact candidate | `3cef7c42c2fd296afd27ab0b6435c632842e1a26` | `1.17` |
 | `0.10.0` | `v0.10.0` | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
