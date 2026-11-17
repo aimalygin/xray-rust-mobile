@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 0.10.1 - 2026-11-16
+
+Release candidate preparation for the core's 0.10.1 patch release. Nothing is
+published yet; the core candidate is pinned by commit until its release
+evidence and annotated `v0.10.1` tag exist.
+
+- Pin the exact 0.10.1 core candidate in commit mode: commit
+  `3cef7c42c2fd296afd27ab0b6435c632842e1a26`, tree
+  `d430ce5f1c106b48ba9ecc55a25455f0a201c50f`, with its Cargo.lock digest. The FFI
+  header, the module map and the canonical Apple/Android sources are those of
+  0.10.0: C ABI stays 1.17, no SDK API changes, and the core reports 0.10.1.
+  See the
+  [core 0.10.1 preparation record](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/docs/v0101-release.md).
+- Security, from the core: the QUIC stack under Hysteria, MASQUE, XHTTP H3 and
+  DNS over QUIC moves to quinn-proto 0.11.19, which closes the ways a server,
+  or anyone who sees the client's first packet, could exhaust the client's
+  memory or abort it (RUSTSEC-2026-0338, 0339, 0341, 0342, 0523, 0524). TLS
+  takes upstream rustls' fixes: a server can no longer make a client that
+  offers brotli certificate compression, as the Chrome-shaped fingerprints
+  do, allocate 1 GiB (RUSTSEC-2026-0348), with RUSTSEC-2026-0285, 0346 and
+  0349 beside it. No ClientHello byte changes. Hosts should update.
+- From the core: every TLS and REALITY fingerprint advertises its uTLS
+  profile's whole cipher suite list, where the suites rustls does not implement
+  were left off the wire; a server that prefers one of those over every AEAD
+  suite now fails the handshake. A Hysteria connect attempt to a server's last
+  or only address gets what is left of the dial's ten seconds, at most eight.
+  Nothing for a host to change.
+- From the core: `xray_core_free` no longer waits for a system DNS lookup still
+  in flight. The SDK's hosts select the static-only DNS bootstrap and were not
+  affected. See the
+  [core changelog](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/CHANGELOG.md#0101---2026-11-16).
+
 ## 0.10.0 - 2026-11-15
 
 VLESS link import, a host-chosen TUN MTU and C ABI 1.17. Artifact
