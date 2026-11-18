@@ -1,19 +1,24 @@
 # Release process
 
-The 0.10.1 preparation requested on 2026-11-16 pins the exact untagged core
-candidate `3cef7c42c2fd296afd27ab0b6435c632842e1a26` (tree
-`d430ce5f1c106b48ba9ecc55a25455f0a201c50f`). It is a patch release: C ABI 1.17, the
-FFI header and the synchronized sources are those of 0.10.0, and both projects
-carry version 0.10.1. The
-[core preparation record](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/docs/v0101-release.md)
-tracks scope and remaining qualification. Publication needs a successful core
-`v010-release-evidence.yml` run on that exact commit and tree, then the
-annotated `v0.10.1` core tag; switch `release/core.env` to that tag without
-changing the commit or tree. If the core candidate becomes a new commit, only
-the pin and its digests move here. Keep the Apple artifact lock and SwiftPM
-checksum unprepared until then. Earlier release evidence does not qualify this
-candidate by itself: which device runs are made again and which are carried
-over from the 0.10.0 campaign is recorded in the core's decision record.
+The 0.10.1 release requested on 2026-11-16 pins core `v0.10.1` (tag object
+`dce2ba1b35824225089c4f4b53c73cf629c1e875`), commit
+`3cef7c42c2fd296afd27ab0b6435c632842e1a26` (tree
+`d430ce5f1c106b48ba9ecc55a25455f0a201c50f`). It is a patch release: C ABI 1.17,
+the FFI header and the synchronized sources are those of 0.10.0, and both
+projects carry version 0.10.1. The candidate passed
+[full CI](https://github.com/aimalygin/xray-rust/actions/runs/44003926752), and
+its exact-candidate archive (SHA-256
+`108330e340fd33b6aa357adc8814342d07deb4dffb79a97794076c865f805652`) passed
+[the evidence workflow](https://github.com/aimalygin/xray-rust/actions/runs/44335212229).
+The owner explicitly authorized publication with the documented limitations on
+2026-11-18; see the
+[0.10.1 decision](https://github.com/aimalygin/xray-rust/blob/048e3e15b665162ce628eef2d1d4910a5e8dea2f/docs/releases/v0.10.1-owner-decisions.json).
+The Android network change and lock/wake are not tested, and three device runs
+count from 0.10.0's build. An earlier release commit,
+`264efdc982b3e1ac4af1f9e1960e560841a0d59e`, was superseded before anything was
+pinned here: it carried TUN TCP sniffing, which the owner moved to 0.11.0.
+Canonical artifact provenance, checksums and published-consumer checks remain
+required.
 
 The 0.10.0 release requested on 2026-11-11 pins core `v0.10.0` (tag object
 `f8155747923cf2a35f0ef231179f328d157a4298`), commit

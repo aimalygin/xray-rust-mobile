@@ -4,17 +4,17 @@
 
 ## 0.10.1 - 2026-11-16
 
-Release candidate preparation for the core's 0.10.1 patch release. Nothing is
-published yet; the core candidate is pinned by commit until its release
-evidence and annotated `v0.10.1` tag exist.
+The core's 0.10.1 patch release: QUIC and TLS security fixes. Artifact
+availability is recorded in
+[GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases/tag/v0.10.1).
 
-- Pin the exact 0.10.1 core candidate in commit mode: commit
+- Pin the exact 0.10.1 core: annotated tag `v0.10.1`, commit
   `3cef7c42c2fd296afd27ab0b6435c632842e1a26`, tree
   `d430ce5f1c106b48ba9ecc55a25455f0a201c50f`, with its Cargo.lock digest. The FFI
   header, the module map and the canonical Apple/Android sources are those of
   0.10.0: C ABI stays 1.17, no SDK API changes, and the core reports 0.10.1.
   See the
-  [core 0.10.1 preparation record](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/docs/v0101-release.md).
+  [core 0.10.1 release record](https://github.com/aimalygin/xray-rust/blob/048e3e15b665162ce628eef2d1d4910a5e8dea2f/docs/v0101-release.md).
 - Security, from the core: the QUIC stack under Hysteria, MASQUE, XHTTP H3 and
   DNS over QUIC moves to quinn-proto 0.11.19, which closes the ways a server,
   or anyone who sees the client's first packet, could exhaust the client's
@@ -32,7 +32,22 @@ evidence and annotated `v0.10.1` tag exist.
 - From the core: `xray_core_free` no longer waits for a system DNS lookup still
   in flight. The SDK's hosts select the static-only DNS bootstrap and were not
   affected. See the
-  [core changelog](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/CHANGELOG.md#0101---2026-11-16).
+  [core changelog](https://github.com/aimalygin/xray-rust/blob/v0.10.1/CHANGELOG.md#0101---2026-11-16).
+- Record the explicit 0.10.1 release decision of 2026-11-18. Every LAN run of
+  both phones and the iPhone's MASQUE and XHTTP H3 Wi-Fi/cellular runs were made
+  on this core; the iPhone's `xicmp` and mKCP Wi-Fi/cellular runs and Android's
+  `xicmp` run were carried over from 0.10.0's build. Not tested: Android
+  Wi-Fi/cellular, the XHTTP H3 network change and lock/wake. The accepted
+  limitations are peak memory above 110% of 0.9.0's for nine protocols (up to
+  127.5%), at most 16 TCP flows at once in a MASQUE or WireGuard tunnel, MASQUE
+  UDP datagrams of at most 1252 bytes over IPv4 and 1232 over IPv6, MASQUE
+  one-flow download at about 21% of Xray-core's throughput, an mKCP server
+  learning of a cancelled flow about six seconds late, a failed or slow first
+  exchange after an iPhone tunnel start on the LAN test bed, MASQUE's iPhone RSS
+  growth above 0.9.0's bound, and a handshake failure against a server that picks
+  a cipher suite rustls does not implement. Failed attempts and original
+  identities remain in the
+  [core evidence](https://github.com/aimalygin/xray-rust/blob/048e3e15b665162ce628eef2d1d4910a5e8dea2f/docs/releases/v0.10.1-owner-decisions.json).
 
 ## 0.10.0 - 2026-11-15
 

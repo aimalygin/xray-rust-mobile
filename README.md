@@ -4,32 +4,24 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
-SDK **0.10.0** pins core [`v0.10.0`](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.0)
-(C ABI 1.17): `vless://` import through the core, a host-chosen TUN MTU, the
-core's mKCP and MASQUE carriers and new masks, and the other changes listed in
-[the changelog](CHANGELOG.md#0100---2026-11-15). The protocols 0.9.0 shipped
-remain supported; legacy VMess remains excluded. See
-[GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status. The
-[core 0.10.0 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.0)
+SDK **0.10.1** pins core [`v0.10.1`](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.1)
+(C ABI 1.17, unchanged from 0.10.0): the core's QUIC and TLS security fixes,
+full uTLS cipher suite lists, a longer Hysteria connect attempt and the other
+changes listed in [the changelog](CHANGELOG.md#0101---2026-11-16), with no SDK
+API change. The protocols 0.9.0 shipped remain supported; legacy VMess remains
+excluded. See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
+for downloadable artifacts and publication status; until the 0.10.1 packages
+are published, the installation examples below use 0.10.0. The
+[core 0.10.1 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.1)
 record what the owner accepted for this release: peak memory above 110% of
-0.9.0's for ten protocols, at most 16 TCP flows per MASQUE or WireGuard tunnel,
+0.9.0's for nine protocols, at most 16 TCP flows per MASQUE or WireGuard tunnel,
 MASQUE's UDP datagram size limit and slow one-flow download, an mKCP server
-learning late of a cancelled flow, a sometimes slow first exchange after an iOS
-tunnel start, an Apple RSS bound set after measurement, untested Android
-network/lock transitions, and iPhone LAN runs carried over from the third
-candidate. For source development, build the native artifacts locally before
-resolving the Swift package.
-
-The `main` branch prepares SDK **0.10.1** against the exact core candidate
-[`3cef7c4`](https://github.com/aimalygin/xray-rust/commit/3cef7c42c2fd296afd27ab0b6435c632842e1a26)
-(C ABI 1.17, unchanged): the core's 0.10.1 fixes listed in
-[the changelog](CHANGELOG.md#0101---2026-11-16), with no SDK API change. The
-[core 0.10.1 preparation record](https://github.com/aimalygin/xray-rust/blob/3cef7c42c2fd296afd27ab0b6435c632842e1a26/docs/v0101-release.md)
-tracks its scope and qualification. Nothing is published yet: the commit pin
-and unprepared artifact locks block publication until the core's v0.10 release
-evidence and annotated `v0.10.1` tag exist. Use the installation examples below
-for the published 0.10.0 packages.
+learning late of a cancelled flow, a failed or slow first exchange after an
+iPhone tunnel start on the LAN test bed, MASQUE's iPhone RSS growth above
+0.9.0's bound, a handshake failure against a server that picks a cipher suite
+rustls does not implement, untested Android network/lock transitions, and three
+device runs carried over from 0.10.0's build. For source development, build the
+native artifacts locally before resolving the Swift package.
 
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
@@ -75,7 +67,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| `0.10.1` (unpublished preparation) | exact candidate | `3cef7c42c2fd296afd27ab0b6435c632842e1a26` | `1.17` |
+| `0.10.1` | `v0.10.1` | `3cef7c42c2fd296afd27ab0b6435c632842e1a26` | `1.17` |
 | `0.10.0` | `v0.10.0` | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
 | `0.8.1` | `v0.8.1` | `5b61eee201fac8639cb1dac0349e34af65db90f7` | `1.12` |
