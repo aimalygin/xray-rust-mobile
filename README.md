@@ -4,6 +4,11 @@
 
 Project website: [xray-rust.aimalygin.chatgpt.site](https://xray-rust.aimalygin.chatgpt.site)
 
+For Kotlin Multiplatform apps, [`xray-rust-kmp`](https://github.com/aimalygin/xray-rust-kmp)
+wraps this SDK so shared Android and iOS code can import proxy links, control
+the VPN tunnel and observe its state. Build the KMP library from tag `v0.10.1`
+using the [Gradle and iOS setup guide](https://github.com/aimalygin/xray-rust-kmp/tree/v0.10.1#use-it-in-your-project).
+
 SDK **0.10.1** pins core [`v0.10.1`](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.1)
 (C ABI 1.17, unchanged from 0.10.0): the core's QUIC and TLS security fixes,
 full uTLS cipher suite lists, a longer Hysteria connect attempt and the other
