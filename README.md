@@ -10,8 +10,7 @@ full uTLS cipher suite lists, a longer Hysteria connect attempt and the other
 changes listed in [the changelog](CHANGELOG.md#0101---2026-11-16), with no SDK
 API change. The protocols 0.9.0 shipped remain supported; legacy VMess remains
 excluded. See [GitHub Releases](https://github.com/aimalygin/xray-rust-mobile/releases)
-for downloadable artifacts and publication status; until the 0.10.1 packages
-are published, the installation examples below use 0.10.0. The
+for downloadable artifacts and publication status. The
 [core 0.10.1 evidence and limitations](https://github.com/aimalygin/xray-rust/releases/tag/v0.10.1)
 record what the owner accepted for this release: peak memory above 110% of
 0.9.0's for nine protocols, at most 16 TCP flows per MASQUE or WireGuard tunnel,
@@ -222,7 +221,7 @@ Add the package:
 dependencies: [
     .package(
         url: "https://github.com/aimalygin/xray-rust-mobile.git",
-        exact: "0.10.0"
+        exact: "0.10.1"
     ),
 ]
 ~~~
@@ -387,12 +386,12 @@ In the app module's `build.gradle.kts`:
 
 ~~~kotlin
 dependencies {
-    implementation("io.github.aimalygin:xray-rust-mobile:0.10.0")
+    implementation("io.github.aimalygin:xray-rust-mobile:0.10.1")
 }
 ~~~
 
 The published coordinate, POM, signatures, sources, and API documentation are
-listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.10.0).
+listed on [Maven Central](https://central.sonatype.com/artifact/io.github.aimalygin/xray-rust-mobile/0.10.1).
 
 Hosts that expose an explicit debug-logging preference can enable the core's
 sanitized access and error logs by creating a private directory before loading
