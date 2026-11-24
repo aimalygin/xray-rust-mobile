@@ -30,8 +30,10 @@ availability is recorded in
   or only address gets what is left of the dial's ten seconds, at most eight.
   Nothing for a host to change.
 - From the core: `xray_core_free` no longer waits for a system DNS lookup still
-  in flight. The SDK's hosts select the static-only DNS bootstrap and were not
-  affected. See the
+  in flight. The SDK's `XrayPacketTunnelProvider` and `XrayVpnService` select
+  the static-only DNS bootstrap and were not affected. A core created directly
+  with Swift `XrayCore(configJSON:)` or Kotlin `XrayCore.create` uses the
+  system bootstrap by default and was affected. See the
   [core changelog](https://github.com/aimalygin/xray-rust/blob/v0.10.1/CHANGELOG.md#0101---2026-11-16).
 - Record the explicit 0.10.1 release decision of 2026-11-18. Every LAN run of
   both phones and the iPhone's MASQUE and XHTTP H3 Wi-Fi/cellular runs were made
