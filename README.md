@@ -500,7 +500,7 @@ Trojan accepts `trojan://`; Shadowsocks 2022 accepts SIP002 `ss://` with the
 three `2022-blake3-*` methods; VMess accepts AEAD profiles with zero/absent
 `alterId`. Unknown or excluded methods fail import. The importer works offline;
 loading a profile does not start a VPN. See the core's
-[compatibility contract](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/config-compatibility.md)
+[compatibility contract](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/config-compatibility.md)
 for transport combinations, resource limits and SS2022 reconnect behavior.
 
 ## Build locally

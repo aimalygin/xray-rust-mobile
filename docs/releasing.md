@@ -65,7 +65,7 @@ packaging toolchain is pinned independently of the core reference-app toolchain.
 
 For the 0.8.0 preparation requested on 2026-10-11, the owner explicitly defers
 further iPhone Hysteria startup-failure diagnosis and calibrated 5% performance
-confirmation. The [core decision record](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/releases/v0.8.0-owner-decisions.json)
+confirmation. The [core decision record](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/releases/v0.8.0-owner-decisions.json)
 preserves failed/not-confirmed outcomes. This does not waive other evidence,
 immutable source pins, canonical artifacts or package-consumer checks.
 
@@ -174,13 +174,13 @@ Each binds to the locked core repository, commit/tree and an unexpired
 successful evidence artifact. v0.8 requires schema-4 evidence for Trojan,
 Shadowsocks 2022 and VMess on Apple and both Android paths, including the
 required import, network/lifecycle, resource and performance checks. See the
-[v0.8 release readiness checklist](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/v08-release-readiness.md).
+[v0.8 release readiness checklist](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/v08-release-readiness.md).
 The current development pin is not accepted release evidence, and the 0.7
 exceptions do not carry over. v0.7 requires fresh
 Apple/Android protocol lifecycle coverage, including FileDescriptor and PacketPump.
 Candidate source checks and old device reports do not establish release acceptance.
 
-The [2026-10-03 iPhone candidate report](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-03-iphone17-v08/README.md)
+The [2026-10-03 iPhone candidate report](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/device-results/2026-10-03-iphone17-v08/README.md)
 uses core `de339981` and SDK `0148543`: LAN protocol/cipher checks and bounded
 Trojan/VMess WAN transitions passed. SS2022 WAN passed only with an explicit
 diagnostic fragmentation relay after the original path failed on IPv6 UDP;
@@ -188,7 +188,7 @@ Go controls reproduced the size/DF-dependent loss. The report preserves that
 condition and all failures. It does not close the full Apple/Android or schema-4
 gate, and neither the development core pin nor artifact locks changed.
 
-The [2026-10-04 iPhone follow-up](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-lifecycle-resources/README.md)
+The [2026-10-04 iPhone follow-up](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/device-results/2026-10-04-iphone17-lifecycle-resources/README.md)
 adds startup cancellation, rapid restart, bounded extension CPU/memory and
 legacy controls on iOS 27.0.1. It uses the same release Rust library and vendored
 SDK sources, plus DEBUG-only reference-app instrumentation. The original Trojan
@@ -196,7 +196,7 @@ timeout and two intermittent WireGuard failures are retained alongside passing
 controls; these observations do not close clean legacy/performance acceptance.
 The runtime pin, source snapshots and artifact locks are unchanged.
 
-The [same-device 0.7/0.8 WireGuard comparison](https://github.com/aimalygin/xray-rust/blob/codex/v08-client-protocols/docs/device-results/2026-10-04-iphone17-wg-baseline/README.md)
+The [same-device 0.7/0.8 WireGuard comparison](https://github.com/aimalygin/xray-rust/blob/fcce4be2771c1fb3f11e9503741d39a4d8df314e/docs/device-results/2026-10-04-iphone17-wg-baseline/README.md)
 passed three alternating invocations per version and three further Trojan
 lifecycle invocations. Earlier failures did not recur under diagnostics, but
 their causes remain unresolved. The CI relay accounting fix changes only a
