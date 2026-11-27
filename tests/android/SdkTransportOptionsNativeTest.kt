@@ -48,6 +48,16 @@ class SdkTransportOptionsNativeTest {
         }
     }
 
+    @Test fun runtimeWorkerThreadsThroughPublicPackageApi() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        assertTrue(XrayCore.ffiInfo().supports(XrayFfiCapability.RuntimeWorkerThreads))
+        val config = """{"outbounds":[{"protocol":"freedom"}]}"""
+        XrayCore.create(config, runtimeWorkerThreads = 2).use { }
+        assertThrows(IllegalArgumentException::class.java) {
+            XrayCore.create(config, runtimeWorkerThreads = 65).close()
+        }
+    }
+
     @Test fun salamanderAndHoppingSurvivePublicImportAndLoad() {
         assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
         val profile = XrayProfileImporter.profile(

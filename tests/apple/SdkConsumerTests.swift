@@ -46,6 +46,13 @@ final class SdkConsumerTests: XCTestCase {
         try core.cancelOutboundProbes()
     }
 
+    func testRuntimeWorkerThreadsThroughPackagedFFI() throws {
+        XCTAssertTrue(XrayCore.ffiInfo.supports(.runtimeWorkerThreads))
+        let config = #"{"outbounds":[{"protocol":"freedom"}]}"#
+        _ = try XrayCore(configJSON: config, runtimeWorkerThreads: 2)
+        XCTAssertThrowsError(try XrayCore(configJSON: config, runtimeWorkerThreads: 65))
+    }
+
     func testHostOptionsAndIdleRebindThroughPackagedFFI() throws {
         let info = XrayCore.ffiInfo
         XCTAssertEqual(info.version.major, 1)
@@ -145,5 +152,10 @@ private final class ConsumerPacketTunnelProvider: XrayPacketTunnelProvider {
         try .init(timeoutMilliseconds: 100, failOpen: false) { flow in
             flow.addressFamily == 4
         }
+    }
+
+    override func handleCustomAppMessage(_ messageData: Data, core: XrayCore) -> Data? {
+        guard activeCore != nil, messageData == Data("consumer-ping".utf8) else { return nil }
+        return Data("pong".utf8)
     }
 }
