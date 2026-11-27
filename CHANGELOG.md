@@ -4,7 +4,7 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin core `6acf7c6242dabc2d27ba138acb233910b3250e0e`, main after
+- Pin core `d481fdfa61afad8663d67e0abdcf80b3e060bfe3`, main after
   [core #382](https://github.com/aimalygin/xray-rust/pull/382) and
   [core #384](https://github.com/aimalygin/xray-rust/pull/384), in commit
   mode with its exact tree and Cargo.lock digest. Synchronize the canonical
@@ -46,7 +46,7 @@ Development source synchronization; the next release version has not been chosen
   with warnings. A base64 JSON `vmess://` link without TLS imports when it
   carries `sni`, `alpn` or `fp`. A DNS answer with a name over 255 octets is
   dropped. See the
-  [core changelog](https://github.com/aimalygin/xray-rust/blob/6acf7c6242dabc2d27ba138acb233910b3250e0e/CHANGELOG.md#unreleased).
+  [core changelog](https://github.com/aimalygin/xray-rust/blob/d481fdfa61afad8663d67e0abdcf80b3e060bfe3/CHANGELOG.md#unreleased).
 
 ## 0.10.1 - 2026-11-16
 

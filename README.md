@@ -28,7 +28,7 @@ device runs carried over from 0.10.0's build. For source development, build the
 native artifacts locally before resolving the Swift package.
 
 The development branch tracks **Unreleased** changes against core
-[`6acf7c6`](https://github.com/aimalygin/xray-rust/commit/6acf7c6242dabc2d27ba138acb233910b3250e0e),
+[`d481fdf`](https://github.com/aimalygin/xray-rust/commit/d481fdfa61afad8663d67e0abdcf80b3e060bfe3),
 which adds C ABI 1.18 (a host-chosen runtime worker count, also through a
 `runtimeWorkerThreads()` override of both VPN integrations), the tunnel
 provider's `activeCore` and `handleCustomAppMessage(_:core:)`, and the core's
@@ -83,7 +83,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
-| Unreleased source snapshot | commit pin; core reports `0.10.1` | `6acf7c6242dabc2d27ba138acb233910b3250e0e` | `1.18` |
+| Unreleased source snapshot | commit pin; core reports `0.10.1` | `d481fdfa61afad8663d67e0abdcf80b3e060bfe3` | `1.18` |
 | `0.10.1` | `v0.10.1` | `3cef7c42c2fd296afd27ab0b6435c632842e1a26` | `1.17` |
 | `0.10.0` | `v0.10.0` | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |
