@@ -27,6 +27,18 @@ rustls does not implement, untested Android network/lock transitions, and three
 device runs carried over from 0.10.0's build. For source development, build the
 native artifacts locally before resolving the Swift package.
 
+The development branch tracks **Unreleased** changes against core
+[`d481fdf`](https://github.com/aimalygin/xray-rust/commit/d481fdfa61afad8663d67e0abdcf80b3e060bfe3),
+which adds C ABI 1.18 (a host-chosen runtime worker count, also through a
+`runtimeWorkerThreads()` override of both VPN integrations), the tunnel
+provider's `activeCore` and `handleCustomAppMessage(_:core:)`, and the core's
+changes since 0.10.1. This source synchronization leaves the last released
+version fields at 0.10.1; local builds of this checkout are development
+snapshots, not the published 0.10.1 artifacts. The commit pin and unprepared
+artifact locks block publication. Use the installation examples below for
+published 0.10.1 packages; see [Unreleased changes](CHANGELOG.md#unreleased).
+A future release version and acceptance scope will be chosen separately.
+
 Native iOS, tvOS, macOS, and Android SDK packages for
 [`xray-rust`](https://github.com/aimalygin/xray-rust). The repository provides
 ready-to-integrate binaries, Swift and Kotlin APIs, and native tunnel adapters
@@ -71,6 +83,7 @@ SDK 0.8.1 and earlier do not provide this capability.
 
 | Mobile SDK | xray-rust | Core commit | C ABI |
 | --- | --- | --- | --- |
+| Unreleased source snapshot | commit pin; core reports `0.10.1` | `d481fdfa61afad8663d67e0abdcf80b3e060bfe3` | `1.18` |
 | `0.10.1` | `v0.10.1` | `3cef7c42c2fd296afd27ab0b6435c632842e1a26` | `1.17` |
 | `0.10.0` | `v0.10.0` | `7eb199bba2562659fdbf0bcde9820e016dd8530c` | `1.17` |
 | `0.9.0` | `v0.9.0` | `30928ad51b4a434546cf143f8e385a8746523172` | `1.15` |

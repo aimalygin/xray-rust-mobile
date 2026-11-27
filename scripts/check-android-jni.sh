@@ -39,6 +39,7 @@ native_dir="$(cd "$CARGO_TARGET_DIR/debug" && pwd -P)"
   --tests '*XrayNetworkChangeNative*' \
   --tests '*XrayStartupProbePreflight*' --tests '*XrayGeodataNative*' \
   --tests '*XrayTunStatsNative*' --tests '*XrayTunMtuNative*' \
+  --tests '*XrayRuntimeWorkerThreadsNative*' \
   --tests '*SdkTransportOptionsNative*' \
   --dependency-verification strict --no-daemon --console=plain "$@"
 
@@ -54,7 +55,8 @@ required = {"XrayProfileImporterNativeTest", "XrayOutboundProbeNativeTest",
             "XrayHysteriaNativeTest", "XrayTunAdmissionNativeTest",
             "SdkTransportOptionsNativeTest", "XrayNetworkChangeNativeTest",
             "XrayStartupProbePreflightNativeTest", "XrayGeodataNativeTest",
-            "XrayTunStatsNativeTest", "XrayTunMtuNativeTest"}
+            "XrayTunStatsNativeTest", "XrayTunMtuNativeTest",
+            "XrayRuntimeWorkerThreadsNativeTest"}
 seen = set()
 passed = skipped = 0
 for path in Path(sys.argv[1]).glob("TEST-*.xml"):

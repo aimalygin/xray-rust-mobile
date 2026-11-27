@@ -9,6 +9,7 @@ import org.xrayrust.mobile.XrayCoreException
 import org.xrayrust.mobile.XrayFfiCapability
 import org.xrayrust.mobile.XrayProfileFormat
 import org.xrayrust.mobile.XrayProfileImporter
+import org.xrayrust.mobile.XrayVpnService
 import org.xrayrust.mobile.supportsProfileImport
 
 class SdkTransportOptionsNativeTest {
@@ -45,6 +46,16 @@ class SdkTransportOptionsNativeTest {
         XrayCore.create("""{"outbounds":[{"protocol":"freedom"}]}""").use { core ->
             core.cancelOutboundProbes()
             core.cancelOutboundProbes()
+        }
+    }
+
+    @Test fun runtimeWorkerThreadsThroughPublicPackageApi() {
+        assumeTrue(java.lang.Boolean.getBoolean("xray.test.nativeImport"))
+        assertTrue(XrayCore.ffiInfo().supports(XrayFfiCapability.RuntimeWorkerThreads))
+        val config = """{"outbounds":[{"protocol":"freedom"}]}"""
+        XrayCore.create(config, runtimeWorkerThreads = 2).use { }
+        assertThrows(IllegalArgumentException::class.java) {
+            XrayCore.create(config, runtimeWorkerThreads = 65).close()
         }
     }
 
@@ -117,4 +128,10 @@ class SdkTransportOptionsNativeTest {
             XrayCore.create(wireguard.replace("192.0.2.53", "dns.example")).close()
         }
     }
+}
+
+// Compilation verifies that a host's VpnService subclass reaches the worker-count hook; the
+// service's start path itself needs a device.
+private class ConsumerVpnService : XrayVpnService() {
+    override fun runtimeWorkerThreads(): Int? = 2
 }

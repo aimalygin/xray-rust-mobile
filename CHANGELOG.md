@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+Development source synchronization; the next release version has not been chosen.
+
+- Pin core `d481fdfa61afad8663d67e0abdcf80b3e060bfe3`, main after
+  [core #382](https://github.com/aimalygin/xray-rust/pull/382) and
+  [core #384](https://github.com/aimalygin/xray-rust/pull/384), in commit
+  mode with its exact tree and Cargo.lock digest. Synchronize the canonical
+  Apple/Android sources and tests, the FFI header and the module map; C ABI
+  is 1.18 and the core still reports 0.10.1. This source synchronization
+  publishes no binaries: the version fields stay at 0.10.1, the Apple
+  artifact lock is unprepared, and source builds and CI use a freshly built
+  XCFramework. The installation examples stay on 0.10.1, whose binaries do
+  not provide ABI 1.18.
+- ABI 1.18: Swift `XrayCore` initializers and Kotlin `XrayCore.create` take an
+  optional `runtimeWorkerThreads`, from 1 to 64, which sets the core's Tokio
+  worker count before the configuration loads. They check
+  `RUNTIME_WORKER_THREADS` (capability bit 31) first. Omitted, the library
+  keeps its default count, as in 0.10.1. The Android library exports
+  `nativeSetRuntimeWorkerThreads`.
+- `XrayPacketTunnelProvider` and `XrayVpnService` take that count from an
+  override, `runtimeWorkerThreads()`, since they create their cores
+  themselves. Each start reads it once and gives it to every core it
+  creates; a count outside 1 to 64 fails the start before network settings
+  are applied or the VPN interface is established, and nil or null keeps
+  the default.
+- `XrayPacketTunnelProvider` has a public `activeCore` property and an open
+  `handleCustomAppMessage(_:core:)` hook. A subclass can reach the running
+  core, for its connection, accounting, selection or health snapshots, a
+  selector override or a routing policy, without forking the provider. The
+  built-in close-connections and stats requests behave as before.
+- The Android and Apple VPN integrations start profiles whose `dns.servers`
+  name Xray-core's `localhost` or `fakedns`, and Android accepts up to 32
+  entries, where it stopped at eight. A profile whose only servers are
+  `localhost` is refused, since no name would resolve inside the tunnel.
+- From the core: the TUN loop no longer wakes every second, so an idle VPN
+  sleeps between packets (on an iPhone 17 Pro Max with one outbound, 101
+  wake-ups a minute became 13); a quiet TCP flow gives back its send buffer;
+  a WireGuard device with no flow for five minutes closes. Configurations
+  gain FakeDNS, `localhost` as a DNS server, up to 32 `dns.servers`, RAW
+  `http` header obfuscation, `sockopt.domainStrategy` on proxy outbounds,
+  SRV and TXT `addressPortStrategy` on phones and larger geosite budgets;
+  full Xray JSON subscriptions whose extra fields change nothing here load
+  with warnings. A base64 JSON `vmess://` link without TLS imports when it
+  carries `sni`, `alpn` or `fp`. A DNS answer with a name over 255 octets is
+  dropped. See the
+  [core changelog](https://github.com/aimalygin/xray-rust/blob/d481fdfa61afad8663d67e0abdcf80b3e060bfe3/CHANGELOG.md#unreleased).
+
 ## 0.10.1 - 2026-11-16
 
 The core's 0.10.1 patch release: QUIC and TLS security fixes. Artifact

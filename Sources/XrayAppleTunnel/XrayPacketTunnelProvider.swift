@@ -666,7 +666,9 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         label: "org.xrayrust.apple.packet-tunnel.dns-bootstrap.completion",
         qos: .userInitiated
     )
-    private lazy var lifecycle = XrayPacketTunnelLifecycle<XrayPacketTunnelRuntime> {
+    // Not `lazy`: `activeCore` reads it from any thread, and the first access
+    // to a lazy property is not synchronized.
+    private let lifecycle = XrayPacketTunnelLifecycle<XrayPacketTunnelRuntime> {
         $0.stop()
     }
 
@@ -682,6 +684,13 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
     /// keeps 1500. Larger MTUs cost Network Extension memory: about 3 KiB per TCP flow at 9000.
     open func tunMtu() throws -> XrayTunMtu? { nil }
 
+    /// Override to run the core's runtime on this many worker threads, 1...64 (ABI 1.18).
+    /// Called once per configured start, before DNS bootstrap and network settings. Every core
+    /// the start creates uses it: the checks before network settings, the startup-probe
+    /// preflight and the data path. A count outside 1...64 fails startup before network
+    /// settings. Returning nil keeps the library's default.
+    open func runtimeWorkerThreads() throws -> UInt32? { nil }
+
     /// Override to opt into host admission for new TCP/UDP flows in either TUN backend.
     /// Called once per configured start, before DNS bootstrap and network settings.
     /// Returning nil preserves the original path without admission callbacks.
@@ -691,16 +700,37 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
     /// not callback execution. Apple does not supply an Android-style UID lookup.
     open func tunAdmissionOptions() throws -> XrayTunAdmissionOptions? { nil }
 
+    /// Answers an app message that the provider does not handle itself.
+    ///
+    /// Called from `handleAppMessage` with the active data-path core, after the
+    /// built-in close-connections request and before the stats request. The
+    /// message is the app's bytes as sent and need not be text. Return the
+    /// response data, or `nil` to fall through to the built-in handling (an
+    /// unknown message then gets no response). Keep the work short, and do
+    /// not start, stop or replace `core` from here.
+    open func handleCustomAppMessage(_ messageData: Data, core: XrayCore) -> Data? { nil }
+
+    /// The core of the running data path, or `nil` before a start has finished
+    /// and after a stop. It can be read from any thread, so a subclass can take
+    /// the core's snapshots on a timer of its own, for example counting
+    /// connections per outbound while the app is closed, which
+    /// `handleCustomAppMessage(_:core:)` reaches only when the app asks. Do not
+    /// start, stop or replace the core through it, and do not keep it past
+    /// `stopTunnel(with:completionHandler:)`: read it again on each use.
+    public var activeCore: XrayCore? { lifecycle.active()?.core }
+
     static func resolvingHostOptions(
         _ config: ResolvedConfig,
         hysteriaStreamLimits: () throws -> XrayHysteriaStreamLimits?,
         tunAdmissionOptions: () throws -> XrayTunAdmissionOptions?,
-        tunMtu: () throws -> XrayTunMtu? = { nil }
+        tunMtu: () throws -> XrayTunMtu? = { nil },
+        runtimeWorkerThreads: () throws -> UInt32? = { nil }
     ) throws -> ResolvedConfig {
         var resolved = config
         resolved.hysteriaStreamLimits = try hysteriaStreamLimits()
         resolved.tunAdmission = try tunAdmissionOptions()
         resolved.tunMtu = try tunMtu().map(XrayCore.supportedTunMtu) ?? .standard
+        resolved.runtimeWorkerThreads = try runtimeWorkerThreads()
         return resolved
     }
 
@@ -770,7 +800,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 resolvedConfig,
                 hysteriaStreamLimits: hysteriaStreamLimits,
                 tunAdmissionOptions: tunAdmissionOptions,
-                tunMtu: tunMtu
+                tunMtu: tunMtu,
+                runtimeWorkerThreads: runtimeWorkerThreads
             )
         } catch {
             if lifecycle.cancelStart(lifecycleToken) {
@@ -849,7 +880,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             try Self.validateConfigBeforeApplyingNetworkSettings(
                 resolvedConfig.json,
                 dnsConfiguration: resolvedConfig.dnsConfiguration,
-                geodataSelection: resolvedConfig.geodataSelection
+                geodataSelection: resolvedConfig.geodataSelection,
+                runtimeWorkerThreads: resolvedConfig.runtimeWorkerThreads
             )
             guard shouldContinue() else {
                 throw XrayPacketTunnelProviderError.dnsBootstrapTimedOut
@@ -864,7 +896,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             try Self.validateConfigBeforeApplyingNetworkSettings(
                 preparedConfig.json,
                 dnsConfiguration: preparedConfig.dnsConfiguration,
-                geodataSelection: preparedConfig.geodataSelection
+                geodataSelection: preparedConfig.geodataSelection,
+                runtimeWorkerThreads: preparedConfig.runtimeWorkerThreads
             )
             return preparedConfig
         }
@@ -1041,13 +1074,15 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             "PacketTunnelProvider",
             "handleAppMessage bytes=\(messageData.count)"
         )
-        guard let request = String(data: messageData, encoding: .utf8),
-              let runtime = lifecycle.active()
-        else {
+        guard let runtime = lifecycle.active() else {
             XrayAppleLog.info("PacketTunnelProvider", "App message ignored or stats unavailable")
             completionHandler?(nil)
             return
         }
+        // The built-in requests are text. A message that is not text, as one
+        // of a subclass's own binary protocol, names none of them and still
+        // reaches `handleCustomAppMessage`.
+        let request = String(data: messageData, encoding: .utf8)
         let core = runtime.core
 
 #if DEBUG
@@ -1101,6 +1136,12 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 )
                 completionHandler?(nil)
             }
+            return
+        }
+
+        if request != XrayTunnelProviderMessage.statsRequest,
+           let response = handleCustomAppMessage(messageData, core: core) {
+            completionHandler?(response)
             return
         }
 
@@ -1289,6 +1330,7 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         var hysteriaStreamLimits: XrayHysteriaStreamLimits? = nil
         var tunAdmission: XrayTunAdmissionOptions? = nil
         var tunMtu: XrayTunMtu = .standard
+        var runtimeWorkerThreads: UInt32? = nil
         var geodataSelection = GeodataSelection(
             directory: Bundle.main.resourceURL,
             policy: .fallbackToDefaults
@@ -1466,10 +1508,11 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                     throw XrayPacketTunnelProviderError.outboundServerResolutionFailed
                 }
                 switch upstream {
-                case .ip:
+                case .ip, .xrayInternal:
                     // DNS endpoints never become carrier exclusions. Routed
                     // mode uses the Xray router; local mode relies on the
-                    // provider-process Network Extension policy.
+                    // provider-process Network Extension policy. `localhost`
+                    // and `fakedns` have no endpoint at all.
                     continue
                 case let .domain(domain, port, rejectsTunnelOwnedAddress):
                     appendBootstrapDomain(
@@ -1689,12 +1732,24 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
     private enum DNSBootstrapUpstream: Equatable {
         case ip(String, port: UInt16)
         case domain(String, port: UInt16, rejectsTunnelOwnedAddress: Bool)
+        /// Xray-core's `localhost`, which the core answers from its own
+        /// bootstrap resolver, or `fakedns`, which it maps onto fake-IP:
+        /// no wire server, so nothing to resolve before the tunnel starts.
+        case xrayInternal
+    }
+
+    private static func isXrayInternalDNSServer(_ address: String) -> Bool {
+        address.caseInsensitiveCompare("localhost") == .orderedSame ||
+            address.caseInsensitiveCompare("fakedns") == .orderedSame
     }
 
     private static func dnsBootstrapUpstream(from rawServer: Any) -> DNSBootstrapUpstream? {
         if let server = rawServer as? String {
             if hasDNSTCPURLScheme(server) {
                 return dnsTCPBootstrapUpstream(from: server)
+            }
+            if isXrayInternalDNSServer(server) {
+                return .xrayInternal
             }
             guard server == server.trimmingCharacters(in: .whitespacesAndNewlines),
                   isNonzeroDNSServer(server),
@@ -1749,9 +1804,10 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             }
             return .ip(canonicalAddress, port: port)
         }
-        guard address.caseInsensitiveCompare("localhost") != .orderedSame,
-              address.caseInsensitiveCompare("fakedns") != .orderedSame,
-              !address.contains(":"),
+        if isXrayInternalDNSServer(address) {
+            return .xrayInternal
+        }
+        guard !address.contains(":"),
               let domain = canonicalDNSBootstrapDomain(address)
         else {
             return nil
@@ -2464,12 +2520,14 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
         geodataSelection: GeodataSelection = GeodataSelection(
             directory: Bundle.main.resourceURL,
             policy: .fallbackToDefaults
-        )
+        ),
+        runtimeWorkerThreads: UInt32? = nil
     ) throws {
         _ = try XrayCore(
             configJSON: configJSON,
             geodataSearchDirectory: geodataSelection.directory,
-            geodataSearchPolicy: geodataSelection.policy
+            geodataSearchPolicy: geodataSelection.policy,
+            runtimeWorkerThreads: runtimeWorkerThreads
         )
         let explicitDNS: XrayMobileExplicitDNSConfiguration
         switch dnsConfiguration {
@@ -2939,7 +2997,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
                 fileLogDirectory: diagnosticLogDirectory,
                 hysteriaStreamLimits: resolvedConfig.hysteriaStreamLimits,
                 tunAdmission: resolvedConfig.tunAdmission,
-                tunMtu: resolvedConfig.tunMtu
+                tunMtu: resolvedConfig.tunMtu,
+                runtimeWorkerThreads: resolvedConfig.runtimeWorkerThreads
             )
         }
         return try XrayCore(
@@ -2955,7 +3014,8 @@ open class XrayPacketTunnelProvider: NEPacketTunnelProvider {
             fileLogDirectory: diagnosticLogDirectory,
             hysteriaStreamLimits: resolvedConfig.hysteriaStreamLimits,
             tunAdmission: resolvedConfig.tunAdmission,
-            tunMtu: resolvedConfig.tunMtu
+            tunMtu: resolvedConfig.tunMtu,
+            runtimeWorkerThreads: resolvedConfig.runtimeWorkerThreads
         )
     }
 
