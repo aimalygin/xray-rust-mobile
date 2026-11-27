@@ -154,6 +154,8 @@ private final class ConsumerPacketTunnelProvider: XrayPacketTunnelProvider {
         }
     }
 
+    override func runtimeWorkerThreads() throws -> UInt32? { 2 }
+
     override func handleCustomAppMessage(_ messageData: Data, core: XrayCore) -> Data? {
         guard activeCore != nil, messageData == Data("consumer-ping".utf8) else { return nil }
         return Data("pong".utf8)

@@ -4,8 +4,9 @@
 
 Development source synchronization; the next release version has not been chosen.
 
-- Pin core `8c31d061ff717ac0cc58417c31b01054d19c98e3`, main after
-  [core #382](https://github.com/aimalygin/xray-rust/pull/382), in commit
+- Pin core `6acf7c6242dabc2d27ba138acb233910b3250e0e`, main after
+  [core #382](https://github.com/aimalygin/xray-rust/pull/382) and
+  [core #384](https://github.com/aimalygin/xray-rust/pull/384), in commit
   mode with its exact tree and Cargo.lock digest. Synchronize the canonical
   Apple/Android sources and tests, the FFI header and the module map; C ABI
   is 1.18 and the core still reports 0.10.1. This source synchronization
@@ -19,6 +20,12 @@ Development source synchronization; the next release version has not been chosen
   `RUNTIME_WORKER_THREADS` (capability bit 31) first. Omitted, the library
   keeps its default count, as in 0.10.1. The Android library exports
   `nativeSetRuntimeWorkerThreads`.
+- `XrayPacketTunnelProvider` and `XrayVpnService` take that count from an
+  override, `runtimeWorkerThreads()`, since they create their cores
+  themselves. Each start reads it once and gives it to every core it
+  creates; a count outside 1 to 64 fails the start before network settings
+  are applied or the VPN interface is established, and nil or null keeps
+  the default.
 - `XrayPacketTunnelProvider` has a public `activeCore` property and an open
   `handleCustomAppMessage(_:core:)` hook. A subclass can reach the running
   core, for its connection, accounting, selection or health snapshots, a
@@ -39,7 +46,7 @@ Development source synchronization; the next release version has not been chosen
   with warnings. A base64 JSON `vmess://` link without TLS imports when it
   carries `sni`, `alpn` or `fp`. A DNS answer with a name over 255 octets is
   dropped. See the
-  [core changelog](https://github.com/aimalygin/xray-rust/blob/8c31d061ff717ac0cc58417c31b01054d19c98e3/CHANGELOG.md#unreleased).
+  [core changelog](https://github.com/aimalygin/xray-rust/blob/6acf7c6242dabc2d27ba138acb233910b3250e0e/CHANGELOG.md#unreleased).
 
 ## 0.10.1 - 2026-11-16
 
